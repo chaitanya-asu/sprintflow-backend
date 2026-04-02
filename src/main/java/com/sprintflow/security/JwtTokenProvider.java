@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Slf4j
@@ -20,7 +21,8 @@ public class JwtTokenProvider {
     private long jwtExpirationMs;
     
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        // Ensure secret is long enough for HS512
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
     
     public String generateToken(Long userId, String email, String role) {
@@ -30,38 +32,29 @@ public class JwtTokenProvider {
                 .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .signWith(getSigningKey()) // Algorithm HS512 is inferred from key strength
                 .compact();
     }
     
-    public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
+    private Claims getClaims(String token) {
+        return Jwts.parser() 
                 .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
-        
+                .parseSignedClaims(token) // Replaces parseClaimsJws
+                .getPayload(); // Replaces getBody()
+    }
+    
+    public Long getUserIdFromToken(String token) {
+        Claims claims = getClaims(token);
         return Long.parseLong(claims.getSubject());
     }
     
     public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        
-        return claims.get("email", String.class);
+        return getClaims(token).get("email", String.class);
     }
     
     public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        
-        return claims.get("role", String.class);
+        return getClaims(token).get("role", String.class);
     }
     
     public boolean validateToken(String token) {
@@ -69,12 +62,12 @@ public class JwtTokenProvider {
             if (token == null || token.trim().isEmpty()) {
                 return false;
             }
-            Jwts.parserBuilder()
+            Jwts.parser()
                     .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
             return true;
-        } catch (JwtException | IllegalArgumentException | SecurityException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             log.error("Token validation failed: {}", e.getMessage());
             return false;
         }

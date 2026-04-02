@@ -21,49 +21,66 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    
+
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
-    
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-                // Public endpoints
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // Public
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/users/**").authenticated()
-                .requestMatchers("/api/sprints/**").authenticated()
-                .requestMatchers("/api/tasks/**").authenticated()
+
+                // Sprints — all 3 roles can read
+                .requestMatchers(HttpMethod.GET,    "/api/sprints/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+                // HR creates/deletes sprints
+                .requestMatchers(HttpMethod.POST,   "/api/sprints").hasRole("HR")
+                .requestMatchers(HttpMethod.DELETE, "/api/sprints/**").hasRole("HR")
+                // HR + TRAINER can update/change status
+                .requestMatchers(HttpMethod.PUT,    "/api/sprints/**").hasAnyRole("HR", "TRAINER")
+                .requestMatchers(HttpMethod.PATCH,  "/api/sprints/**").hasAnyRole("HR", "TRAINER")
+
+                // Attendance — TRAINER submits, all can read
+                .requestMatchers(HttpMethod.POST, "/api/attendance/**").hasRole("TRAINER")
+                .requestMatchers(HttpMethod.GET,  "/api/attendance/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+
+                // Employees — MANAGER + HR manage, all can read
+                .requestMatchers(HttpMethod.GET,    "/api/employees/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+                .requestMatchers(HttpMethod.POST,   "/api/employees/**").hasAnyRole("MANAGER", "HR")
+                .requestMatchers(HttpMethod.PUT,    "/api/employees/**").hasAnyRole("MANAGER", "HR")
+                .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("MANAGER")
+
+                // Users (trainer/HR management) — MANAGER only
+                .requestMatchers("/api/users/**").hasRole("MANAGER")
+
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
+
         return http.build();
     }
-    
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-        
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }
