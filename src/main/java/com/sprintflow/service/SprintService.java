@@ -47,6 +47,7 @@ public class SprintService {
         Sprint sprint = new Sprint();
         mapDtoToEntity(dto, sprint);
         sprint.setCreatedBy(createdBy);
+        // Always default to Scheduled on creation — DTO status is ignored intentionally
         sprint.setStatus("Scheduled");
         sprint.setCreatedAt(LocalDateTime.now());
         sprint.setUpdatedAt(LocalDateTime.now());

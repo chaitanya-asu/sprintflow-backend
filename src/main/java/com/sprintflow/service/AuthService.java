@@ -43,11 +43,12 @@ public class AuthService {
 
     public AuthResponseDTO refresh(String refreshToken) {
         User user = validateToken(refreshToken);
-        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), user.getEmail(), user.getRole().name());
+        String newAccessToken  = jwtTokenProvider.generateToken(user.getId(), user.getEmail(), user.getRole().name());
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail(), user.getRole().name());
         AuthResponseDTO.UserInfo userInfo = new AuthResponseDTO.UserInfo(
                 user.getId(), user.getName(), user.getEmail(), user.getRole().name()
         );
-        return new AuthResponseDTO(newAccessToken, refreshToken, userInfo, jwtTokenProvider.getExpirationTime() / 1000);
+        return new AuthResponseDTO(newAccessToken, newRefreshToken, userInfo, jwtTokenProvider.getExpirationTime() / 1000);
     }
 
     public User validateToken(String token) {
