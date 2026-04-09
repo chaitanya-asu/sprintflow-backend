@@ -19,6 +19,9 @@ public class JwtTokenProvider {
     
     @Value("${app.jwt.expiration:86400000}")
     private long jwtExpirationMs;
+
+    @Value("${app.jwt.refresh-expiration:604800000}")
+    private long jwtRefreshExpirationMs;
     
     private SecretKey getSigningKey() {
         // Ensure secret is long enough for HS512
@@ -26,13 +29,21 @@ public class JwtTokenProvider {
     }
     
     public String generateToken(Long userId, String email, String role) {
+        return buildToken(userId, email, role, jwtExpirationMs);
+    }
+
+    public String generateRefreshToken(Long userId, String email, String role) {
+        return buildToken(userId, email, role, jwtRefreshExpirationMs);
+    }
+
+    private String buildToken(Long userId, String email, String role, long expiryMs) {
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("role", role)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
-                .signWith(getSigningKey()) // Algorithm HS512 is inferred from key strength
+                .expiration(new Date(System.currentTimeMillis() + expiryMs))
+                .signWith(getSigningKey())
                 .compact();
     }
     

@@ -53,7 +53,6 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    // Trainer → Sprints (one trainer can train many sprints)
     @OneToMany(mappedBy = "trainer", fetch = FetchType.LAZY)
     private List<Sprint> sprints;
 

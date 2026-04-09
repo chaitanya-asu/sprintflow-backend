@@ -78,6 +78,15 @@ public class UserService {
         if (dto.getTrainerRole() != null) user.setTrainerRole(dto.getTrainerRole());
         if (dto.getStatus()      != null) user.setStatus(dto.getStatus());
         if (dto.getJoinedDate()  != null) user.setJoinedDate(dto.getJoinedDate());
+        // Allow email update (manager changing their own email or updating a user's email)
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+            if (!dto.getEmail().equalsIgnoreCase(user.getEmail()) &&
+                    userRepository.existsByEmail(dto.getEmail())) {
+                throw new com.sprintflow.exception.DuplicateResourceException(
+                        "Email already in use: " + dto.getEmail());
+            }
+            user.setEmail(dto.getEmail().toLowerCase().trim());
+        }
         user.setUpdatedAt(LocalDateTime.now());
 
         return toDTO(userRepository.save(user));
@@ -110,7 +119,7 @@ public class UserService {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 8) + "@Sf1";
     }
 
-    UserDTO toDTO(User user) {
+    public UserDTO toDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setName(user.getName());
