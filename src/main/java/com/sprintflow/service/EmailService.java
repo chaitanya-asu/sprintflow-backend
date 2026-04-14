@@ -1,5 +1,6 @@
 package com.sprintflow.service;
 
+import com.sprintflow.entity.User;
 import com.sprintflow.repository.UserRepository;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,7 +111,7 @@ public class EmailService {
                         && "Active".equalsIgnoreCase(u.getStatus()))
                 .findFirst()
                 .map(u -> buildSender(u.getSmtpEmail(), u.getSmtpPassword()))
-                .orElseThrow(() -> new ResourceNotFoundException(
+                .orElseThrow(() -> new RuntimeException(
                         "No mail configuration found. A Manager must configure SMTP credentials in Profile → Mail Settings."));
     }
 
@@ -121,7 +122,7 @@ public class EmailService {
         JavaMailSenderImpl sender;
         try {
             sender = resolveManagerSender();
-        } catch (ResourceNotFoundException e) {
+        } catch (RuntimeException e) {
             System.out.printf("[EmailService] No SMTP config — credentials for %s (%s): %s%n",
                     name, toEmail, tempPassword);
             return;
@@ -156,7 +157,7 @@ public class EmailService {
         JavaMailSenderImpl sender;
         try {
             sender = resolveManagerSender();
-        } catch (ResourceNotFoundException e) {
+        } catch (RuntimeException e) {
             System.out.printf("[EmailService] No SMTP config — absence notification for %s (%s) on %s%n",
                     employeeName, toEmail, date);
             return;
