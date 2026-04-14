@@ -60,12 +60,12 @@ public class SecurityConfig {
                 // WebSocket handshake (SockJS)
                 .requestMatchers("/ws/**").permitAll()
 
-                // Sprints — all roles read
+                // Sprints — all roles read; HR + MANAGER create/delete; HR + MANAGER + TRAINER update
                 .requestMatchers(HttpMethod.GET,    "/api/sprints/**").hasAnyRole("MANAGER", "HR", "TRAINER")
-                .requestMatchers(HttpMethod.POST,   "/api/sprints").hasRole("HR")
-                .requestMatchers(HttpMethod.DELETE, "/api/sprints/**").hasRole("HR")
-                .requestMatchers(HttpMethod.PUT,    "/api/sprints/**").hasAnyRole("HR", "TRAINER")
-                .requestMatchers(HttpMethod.PATCH,  "/api/sprints/**").hasAnyRole("HR", "TRAINER")
+                .requestMatchers(HttpMethod.POST,   "/api/sprints").hasAnyRole("HR", "MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/sprints/**").hasAnyRole("HR", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/sprints/**").hasAnyRole("HR", "TRAINER", "MANAGER")
+                .requestMatchers(HttpMethod.PATCH,  "/api/sprints/**").hasAnyRole("HR", "TRAINER", "MANAGER")
 
                 // Attendance — trainer submits/patches, all read
                 .requestMatchers(HttpMethod.POST,  "/api/attendance/**").hasRole("TRAINER")
