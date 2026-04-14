@@ -67,16 +67,16 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT,    "/api/sprints/**").hasAnyRole("HR", "TRAINER", "MANAGER")
                 .requestMatchers(HttpMethod.PATCH,  "/api/sprints/**").hasAnyRole("HR", "TRAINER", "MANAGER")
 
-                // Attendance — trainer submits/patches, all read
-                .requestMatchers(HttpMethod.POST,  "/api/attendance/**").hasRole("TRAINER")
-                .requestMatchers(HttpMethod.PATCH, "/api/attendance/**").hasRole("TRAINER")
+                // Attendance — trainer submits; manager + HR + trainer read
+                .requestMatchers(HttpMethod.POST,  "/api/attendance/**").hasAnyRole("TRAINER", "MANAGER")
+                .requestMatchers(HttpMethod.PATCH, "/api/attendance/**").hasAnyRole("TRAINER", "MANAGER")
                 .requestMatchers(HttpMethod.GET,   "/api/attendance/**").hasAnyRole("MANAGER", "HR", "TRAINER")
 
-                // Employees — manager + HR manage, all read
+                // Employees — manager + HR manage (including delete), trainer reads
                 .requestMatchers(HttpMethod.GET,    "/api/employees/**").hasAnyRole("MANAGER", "HR", "TRAINER")
                 .requestMatchers(HttpMethod.POST,   "/api/employees/**").hasAnyRole("MANAGER", "HR")
                 .requestMatchers(HttpMethod.PUT,    "/api/employees/**").hasAnyRole("MANAGER", "HR")
-                .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasAnyRole("MANAGER", "HR")
 
                 // Messages — all authenticated roles
                 .requestMatchers("/api/messages/**").authenticated()
