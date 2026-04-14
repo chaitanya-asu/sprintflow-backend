@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS users (
   joined_date       DATE,
   temp_password     VARCHAR(255),
   password_changed  TINYINT(1)      NOT NULL DEFAULT 0,
+  smtp_email        VARCHAR(150),                        -- MANAGER only: sender address
+  smtp_password     VARCHAR(255),                        -- AES-256 encrypted App Password
   created_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

@@ -3,6 +3,7 @@ package com.sprintflow.controller;
 import com.sprintflow.dto.LoginDTO;
 import com.sprintflow.dto.AuthResponseDTO;
 import com.sprintflow.dto.ApiResponseDTO;
+import com.sprintflow.dto.MailConfigDTO;
 import com.sprintflow.dto.UserDTO;
 import com.sprintflow.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -61,9 +63,9 @@ public class AuthController {
 
     @Operation(summary = "Update own profile — name, phone, department, email")
     @PutMapping("/profile")
-    public ResponseEntity<ApiResponseDTO<UserDTO>> updateProfile(
+    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> updateProfile(
             @RequestBody UserDTO dto, Principal principal) {
-        return ok("Profile updated", authService.updateProfile(principal.getName(), dto));
+        return ok("Profile updated", authService.updateProfileWithTokens(principal.getName(), dto));
     }
 
     @Operation(summary = "Change own password")
@@ -74,8 +76,30 @@ public class AuthController {
         return ok("Password changed successfully", null);
     }
 
-    // ── Helper ────────────────────────────────────────────────
+    // ── Mail config (MANAGER only) ───────────────────────────────────────────────
 
+    @Operation(summary = "Get mail config status — whether SMTP is configured")
+    @GetMapping("/mail-config")
+    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> getMailConfig(Principal principal) {
+        return ok("Mail config status", authService.getMailConfigStatus(principal.getName()));
+    }
+
+    @Operation(summary = "Save SMTP credentials for the calling manager")
+    @PutMapping("/mail-config")
+    public ResponseEntity<ApiResponseDTO<String>> saveMailConfig(
+            @RequestBody MailConfigDTO dto, Principal principal) {
+        authService.saveMailConfig(principal.getName(), dto);
+        return ok("Mail configuration saved", null);
+    }
+
+    @Operation(summary = "Send a test email to verify SMTP credentials")
+    @PostMapping("/mail-config/test")
+    public ResponseEntity<ApiResponseDTO<String>> testMailConfig(Principal principal) {
+        authService.testMailConfig(principal.getName());
+        return ok("Test email sent to " + principal.getName(), null);
+    }
+
+    // Fix the generic type on the helper to accept Object
     private <T> ResponseEntity<ApiResponseDTO<T>> ok(String message, T data) {
         return ResponseEntity.ok(ApiResponseDTO.<T>builder()
                 .success(true).message(message).data(data).statusCode(200).build());

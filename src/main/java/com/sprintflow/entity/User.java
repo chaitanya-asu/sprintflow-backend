@@ -47,6 +47,13 @@ public class User {
     @Column(name = "password_changed", nullable = false)
     private boolean passwordChanged = false;
 
+    // SMTP credentials stored per-manager for dynamic credential emails
+    @Column(name = "smtp_email", length = 150)
+    private String smtpEmail;
+
+    @Column(name = "smtp_password", length = 255)  // stored encrypted
+    private String smtpPassword;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -94,6 +101,12 @@ public class User {
 
     public boolean isPasswordChanged() { return passwordChanged; }
     public void setPasswordChanged(boolean passwordChanged) { this.passwordChanged = passwordChanged; }
+
+    public String getSmtpEmail() { return smtpEmail; }
+    public void setSmtpEmail(String smtpEmail) { this.smtpEmail = smtpEmail; }
+
+    public String getSmtpPassword() { return smtpPassword; }
+    public void setSmtpPassword(String smtpPassword) { this.smtpPassword = smtpPassword; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
