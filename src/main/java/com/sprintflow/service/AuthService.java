@@ -10,9 +10,14 @@ import com.sprintflow.exception.ResourceNotFoundException;
 import com.sprintflow.repository.UserRepository;
 import com.sprintflow.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,7 +28,30 @@ public class AuthService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtTokenProvider jwtTokenProvider;
     @Autowired private UserService      userService;
-    @Autowired private EmailService     emailService;
+    // EmailService is NOT injected here — avoids circular dependency.
+    // Encryption is handled inline below.
+
+    @Value("${app.mail.encryption-key:SprintFlow#MailKey@2024!}")
+    private String encryptionKey;
+
+    // ── AES encryption (same key as EmailService) ─────────────
+    private SecretKeySpec aesKey() {
+        byte[] raw = encryptionKey.getBytes(StandardCharsets.UTF_8);
+        byte[] key = new byte[32];
+        System.arraycopy(raw, 0, key, 0, Math.min(raw.length, 32));
+        return new SecretKeySpec(key, "AES");
+    }
+
+    private String encrypt(String plain) {
+        try {
+            Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            c.init(Cipher.ENCRYPT_MODE, aesKey());
+            return Base64.getEncoder().encodeToString(
+                    c.doFinal(plain.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new RuntimeException("Encryption failed", e);
+        }
+    }
 
     public AuthResponseDTO login(LoginDTO loginDTO) {
         User user = userRepository.findByEmail(loginDTO.getEmail())
@@ -144,7 +172,7 @@ public class AuthService {
             throw new AuthenticationException("Only managers can configure mail settings");
 
         manager.setSmtpEmail(dto.getSmtpEmail().trim().toLowerCase());
-        manager.setSmtpPassword(emailService.encrypt(dto.getSmtpPassword()));
+        manager.setSmtpPassword(encrypt(dto.getSmtpPassword()));  // encrypt inline
         manager.setUpdatedAt(java.time.LocalDateTime.now());
         userRepository.save(manager);
     }
@@ -166,7 +194,6 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (manager.getSmtpEmail() == null || manager.getSmtpPassword() == null)
             throw new AuthenticationException("Mail not configured. Save SMTP credentials first.");
-        // Reuse sendCredentials with a dummy test payload to the manager themselves
-        emailService.sendCredentials(managerEmail, manager.getName(), "[TEST — ignore this email]");
+        userService.sendTestEmail(manager.getId());
     }
 }

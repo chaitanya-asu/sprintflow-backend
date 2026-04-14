@@ -112,6 +112,16 @@ public class UserService {
         if (emailService != null) emailService.sendCredentials(user.getEmail(), user.getName(), newTemp);
     }
 
+    /** Sends a test email to the given user without changing their password. */
+    public void sendTestEmail(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        if (emailService != null)
+            emailService.sendCredentials(user.getEmail(), user.getName(), "[TEST — ignore this email]");
+        else
+            System.out.printf("[EmailService] Test email for %s — no SMTP configured%n", user.getEmail());
+    }
+
     // ── Helpers ──────────────────────────────────────────────
 
     private String generatePassword() {

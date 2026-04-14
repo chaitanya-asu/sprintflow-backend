@@ -1,7 +1,5 @@
 package com.sprintflow.service;
 
-import com.sprintflow.entity.User;
-import com.sprintflow.exception.ResourceNotFoundException;
 import com.sprintflow.repository.UserRepository;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
