@@ -96,14 +96,20 @@ public class UserController {
         return ok("User deactivated successfully", null);
     }
 
-    @Operation(
-        summary     = "Resend credentials email",
-        description = "Generates a new temporary password and emails it to the user. **MANAGER only.**"
-    )
+    @Operation(summary = "Resend credentials email",
+        description = "Generates a new temporary password and emails it to the user. **MANAGER only.**")
     @PostMapping("/{id}/resend-credentials")
     public ResponseEntity<ApiResponseDTO<String>> resendCredentials(@PathVariable Long id) {
         userService.resendCredentials(id);
         return ok("Credentials resent successfully", null);
+    }
+
+    @Operation(summary = "Restore user",
+        description = "Reactivates a soft-deleted (Inactive) user. **MANAGER only.**")
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<ApiResponseDTO<String>> restore(@PathVariable Long id) {
+        userService.restoreUser(id);
+        return ok("User restored successfully", null);
     }
 
     private <T> ResponseEntity<ApiResponseDTO<T>> ok(String message, T data) {

@@ -33,19 +33,44 @@ public class UserService {
 
     public List<UserDTO> getUsersByRole(String roleStr) {
         Role role = Role.valueOf(roleStr.toUpperCase());
-        return userRepository.findByRole(role).stream().map(this::toDTO).collect(Collectors.toList());
+        // Return ALL users (active + inactive) so manager can see and restore deleted ones
+        return userRepository.findByRoleAll(role).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    // Manager creates trainer or HR — auto-generates password and emails credentials
+    // Manager creates trainer or HR.
+    // If a soft-deleted user with the same email exists, reactivate them instead of blocking.
     public UserDTO createUser(UserDTO dto) {
-        if (userRepository.existsByEmail(dto.getEmail()))
-            throw new DuplicateResourceException("Email already exists: " + dto.getEmail());
+        String email = dto.getEmail().trim().toLowerCase();
 
+        // Check for existing user with this email (any status)
+        java.util.Optional<User> existing = userRepository.findByEmailIgnoreCase(email);
+        if (existing.isPresent()) {
+            User u = existing.get();
+            if ("Active".equalsIgnoreCase(u.getStatus()))
+                throw new DuplicateResourceException("A user with this email already exists: " + email);
+            // Reactivate the soft-deleted user with fresh credentials
+            String tempPassword = generatePassword();
+            u.setName(dto.getName());
+            u.setPhone(dto.getPhone());
+            u.setDepartment(dto.getDepartment());
+            u.setTrainerRole(dto.getTrainerRole());
+            if (dto.getJoinedDate() != null) u.setJoinedDate(dto.getJoinedDate());
+            u.setPassword(passwordEncoder.encode(tempPassword));
+            u.setTempPassword(tempPassword);
+            u.setPasswordChanged(false);
+            u.setStatus("Active");
+            u.setUpdatedAt(LocalDateTime.now());
+            User saved = userRepository.save(u);
+            if (emailService != null) emailService.sendCredentials(saved.getEmail(), saved.getName(), tempPassword);
+            return toDTO(saved);
+        }
+
+        // New user — create fresh
         String tempPassword = generatePassword();
 
         User user = new User();
         user.setName(dto.getName());
-        user.setEmail(dto.getEmail());
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(tempPassword));
         user.setRole(Role.valueOf(dto.getRole().toUpperCase()));
         user.setPhone(dto.getPhone());
@@ -59,12 +84,7 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
 
         User saved = userRepository.save(user);
-
-        // Send credentials email
-        if (emailService != null) {
-            emailService.sendCredentials(saved.getEmail(), saved.getName(), tempPassword);
-        }
-
+        if (emailService != null) emailService.sendCredentials(saved.getEmail(), saved.getName(), tempPassword);
         return toDTO(saved);
     }
 
@@ -96,6 +116,14 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
         user.setStatus("Inactive");
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public void restoreUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        user.setStatus("Active");
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
     }
