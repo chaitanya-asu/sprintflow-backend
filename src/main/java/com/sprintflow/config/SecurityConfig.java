@@ -81,8 +81,12 @@ public class SecurityConfig {
                 // Messages — all authenticated roles
                 .requestMatchers("/api/messages/**").authenticated()
 
-                // Users — manager only
-                .requestMatchers("/api/users/**").hasRole("MANAGER")
+                // Users — manager only (all HTTP methods)
+                .requestMatchers(HttpMethod.GET,    "/api/users/**").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.POST,   "/api/users/**").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/users/**").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.PATCH,  "/api/users/**").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("MANAGER")
 
                 .anyRequest().authenticated()
             )
