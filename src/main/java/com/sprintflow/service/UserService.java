@@ -116,10 +116,10 @@ public class UserService {
     public void sendTestEmail(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
-        if (emailService != null)
-            emailService.sendCredentials(user.getEmail(), user.getName(), "[TEST — ignore this email]");
-        else
-            System.out.printf("[EmailService] Test email for %s — no SMTP configured%n", user.getEmail());
+        if (emailService == null)
+            throw new RuntimeException("EmailService not available");
+        // sync call — throws on SMTP failure so the error reaches the frontend
+        emailService.sendCredentialsSync(user.getEmail(), user.getName(), "[TEST — ignore this email]");
     }
 
     // ── Helpers ──────────────────────────────────────────────
