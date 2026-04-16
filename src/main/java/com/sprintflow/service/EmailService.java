@@ -28,6 +28,9 @@ public class EmailService {
     @Value("${app.mail.encryption-key:SprintFlow#MailKey@2024!}")
     private String encryptionKey;
 
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     // ── AES helpers ───────────────────────────────────────────
 
     private SecretKeySpec aesKey() {
@@ -119,7 +122,7 @@ public class EmailService {
                 + "<p style='color:#374151;font-size:14px'>Your <strong>" + appName + "</strong> account has been created.</p>"
                 + "<div style='background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin:20px 0'>"
                 + "<p style='margin:4px 0;font-size:13px;color:#6b7280'>Login URL</p>"
-                + "<p style='margin:0 0 12px;font-size:14px;color:#111827;font-weight:600'>http://localhost:5173/login</p>"
+                + "<p style='margin:0 0 12px;font-size:14px;color:#111827;font-weight:600'>" + frontendUrl + "/login</p>"
                 + "<p style='margin:4px 0;font-size:13px;color:#6b7280'>Email</p>"
                 + "<p style='margin:0 0 12px;font-size:14px;color:#111827;font-weight:600'>" + toEmail + "</p>"
                 + "<p style='margin:4px 0;font-size:13px;color:#6b7280'>Temporary Password</p>"
