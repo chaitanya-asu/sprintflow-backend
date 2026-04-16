@@ -1,20 +1,37 @@
 package com.sprintflow.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class UserDTO {
 
     private Long id;
-    private String name;         // full name (frontend uses "name")
+    private String name;
     private String email;
-    private String role;         // lowercase: manager, hr, trainer
+    private String role;
     private String phone;
     private String department;
-    private String trainerRole;  // Manager-Trainings, Director-Trainings, Delivery Head
-    private String status;       // Active, Inactive
+    private String trainerRole;
+    private String status;
+
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate joinedDate;
+
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime createdAt;
+
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime updatedAt;
 
     public UserDTO() {}

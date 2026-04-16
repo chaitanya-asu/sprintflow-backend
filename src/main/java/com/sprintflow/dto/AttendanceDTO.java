@@ -1,5 +1,12 @@
 package com.sprintflow.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,20 +21,35 @@ public class AttendanceDTO {
     private String employeeName;
     private String technology;
     private String cohort;
+
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate attendanceDate;
-    private String status;       // Present, Late, Absent
+
+    private String status;
     private String checkInTime;
     private String notes;
     private boolean submitted;
+
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime createdAt;
+
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime updatedAt;
 
     // ── Submit request ───────────────────────────────────────
     public static class SubmitRequest {
         private Long sprintId;
+
+        @JsonDeserialize(using = LocalDateDeserializer.class)
+        @JsonSerialize(using = LocalDateSerializer.class)
+        @JsonFormat(pattern = "yyyy-MM-dd")
         private LocalDate attendanceDate;
+
         private List<AttendanceRecord> records;
-        /** When true the backend sends absence emails after saving. Trainer controls this per-submit. */
         private boolean sendAbsenceEmails = false;
 
         public static class AttendanceRecord {
