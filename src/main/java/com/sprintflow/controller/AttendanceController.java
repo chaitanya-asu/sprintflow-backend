@@ -109,8 +109,13 @@ public class AttendanceController {
         return ok("Cohort statistics retrieved", attendanceService.getCohortStats(sprintId));
     }
 
+    @Operation(summary = "Global cohort-level attendance stats across all sprints")
+    @GetMapping("/cohort-stats/all")
+    public ResponseEntity<ApiResponseDTO<List<AttendanceDTO.CohortStatsDTO>>> getGlobalCohortStats() {
+        return ok("Global cohort statistics retrieved", attendanceService.getGlobalCohortStats());
+    }
+
     @Operation(
-        summary     = "Overall attendance summary",
         description = "Returns total record count and overall present/late/absent counts across all sprints. " +
                       "Used by Manager Dashboard."
     )

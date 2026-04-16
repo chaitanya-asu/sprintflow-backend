@@ -1,5 +1,10 @@
 package com.sprintflow.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -7,14 +12,23 @@ import java.util.List;
 public class SprintDTO {
 
     private Long id;
-    private String title;           // was "name"
+    private String title;
     private String technology;
-    private String cohort;          // primary cohort
-    private List<CohortPair> cohorts; // multi tech+cohort pairs
+    private String cohort;
+    private List<CohortPair> cohorts;
     private Long trainerId;
-    private String trainer;         // trainer name string (frontend uses this)
-    private String room;            // was "location"
+    private String trainer;
+    private Integer employeeCount;
+    private String room;
+
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate startDate;
+
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate endDate;
     private String sprintStart;     // e.g. 09:00 AM
     private String sprintEnd;       // e.g. 05:00 PM
@@ -65,6 +79,9 @@ public class SprintDTO {
 
     public String getTrainer() { return trainer; }
     public void setTrainer(String trainer) { this.trainer = trainer; }
+
+    public Integer getEmployeeCount() { return employeeCount; }
+    public void setEmployeeCount(Integer employeeCount) { this.employeeCount = employeeCount; }
 
     public String getRoom() { return room; }
     public void setRoom(String room) { this.room = room; }

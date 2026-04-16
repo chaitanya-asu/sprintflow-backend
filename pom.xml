@@ -23,6 +23,12 @@
 
 	<dependencies>
 
+		<!-- Jackson Java 8 Date/Time (LocalDate, LocalDateTime deserialization) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+		</dependency>
+
 		<!-- Web -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

@@ -40,4 +40,12 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
            "SUM(CASE WHEN a.status = 'Absent'  THEN 1 ELSE 0 END) " +
            "FROM Attendance a WHERE a.sprint.id = ?1 GROUP BY a.employee.cohort, a.employee.technology")
     List<Object[]> getCohortStatsBySprintId(Long sprintId);
+
+    // Global cohort-level stats across ALL sprints
+    @Query("SELECT a.employee.cohort, a.employee.technology, COUNT(a), " +
+           "SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END), " +
+           "SUM(CASE WHEN a.status = 'Late'    THEN 1 ELSE 0 END), " +
+           "SUM(CASE WHEN a.status = 'Absent'  THEN 1 ELSE 0 END) " +
+           "FROM Attendance a GROUP BY a.employee.cohort, a.employee.technology")
+    List<Object[]> getGlobalCohortStats();
 }

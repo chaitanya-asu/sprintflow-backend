@@ -6,6 +6,7 @@ import com.sprintflow.dto.SprintDTO;
 import com.sprintflow.entity.Sprint;
 import com.sprintflow.entity.User;
 import com.sprintflow.exception.ResourceNotFoundException;
+import com.sprintflow.repository.EmployeeRepository;
 import com.sprintflow.repository.SprintRepository;
 import com.sprintflow.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,8 @@ public class SprintService {
 
     @Autowired private SprintRepository sprintRepository;
     @Autowired private UserRepository userRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired private EmployeeRepository employeeRepository;
+    @Autowired private ObjectMapper objectMapper;
 
     public List<SprintDTO> getAllSprints() {
         return sprintRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
@@ -69,6 +71,17 @@ public class SprintService {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + id));
         mapDtoToEntity(dto, sprint);
+
+        // Update trainer by name or ID
+        if (dto.getTrainer() != null && !dto.getTrainer().isBlank()) {
+            userRepository.findAll().stream()
+                    .filter(u -> u.getName().equalsIgnoreCase(dto.getTrainer()))
+                    .findFirst()
+                    .ifPresent(sprint::setTrainer);
+        } else if (dto.getTrainerId() != null) {
+            userRepository.findById(dto.getTrainerId()).ifPresent(sprint::setTrainer);
+        }
+
         sprint.setUpdatedAt(LocalDateTime.now());
         return toDTO(sprintRepository.save(sprint));
     }
@@ -148,6 +161,17 @@ public class SprintService {
             dto.setCohorts(Collections.singletonList(
                     new SprintDTO.CohortPair(sprint.getTechnology(), sprint.getCohort())));
         }
+
+        // Count employees from DB matching sprint cohort pairs
+        int count = 0;
+        List<SprintDTO.CohortPair> pairs = dto.getCohorts() != null ? dto.getCohorts() : Collections.emptyList();
+        for (SprintDTO.CohortPair pair : pairs) {
+            if (pair.getTechnology() != null && pair.getCohort() != null) {
+                count += employeeRepository.findActiveByTechnologyAndCohort(
+                        pair.getTechnology(), pair.getCohort()).size();
+            }
+        }
+        dto.setEmployeeCount(count);
 
         return dto;
     }

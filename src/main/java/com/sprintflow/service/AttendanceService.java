@@ -155,6 +155,26 @@ public class AttendanceService {
         return stats;
     }
 
+    // ── Global cohort stats across all sprints ────────────────
+    public List<AttendanceDTO.CohortStatsDTO> getGlobalCohortStats() {
+        List<Object[]> raw = attendanceRepository.getGlobalCohortStats();
+        List<AttendanceDTO.CohortStatsDTO> stats = new ArrayList<>();
+        for (Object[] row : raw) {
+            AttendanceDTO.CohortStatsDTO stat = new AttendanceDTO.CohortStatsDTO();
+            stat.setCohort((String) row[0]);
+            stat.setTechnology((String) row[1]);
+            stat.setTotalDays((Long) row[2]);
+            stat.setPresentDays((Long) row[3]);
+            stat.setLateDays((Long) row[4]);
+            stat.setAbsentDays((Long) row[5]);
+            stat.setPresentPercentage(stat.getTotalDays() > 0
+                    ? Math.round((stat.getPresentDays() * 100.0 / stat.getTotalDays()) * 100) / 100.0
+                    : 0);
+            stats.add(stat);
+        }
+        return stats;
+    }
+
     // ── Overall summary across all sprints (ManagerDashboard) ─
     public AttendanceDTO.SummaryDTO getSummary() {
         long total   = attendanceRepository.count();
