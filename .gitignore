@@ -33,3 +33,9 @@ build/
 .vscode/
 
 .metadata
+
+### Runtime / temp files — never commit these ###
+server.log
+token.tmp
+*.log
+*.tmp
