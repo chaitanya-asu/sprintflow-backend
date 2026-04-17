@@ -17,9 +17,11 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -28,8 +30,7 @@ public class AuthService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtTokenProvider jwtTokenProvider;
     @Autowired private UserService      userService;
-    // EmailService is NOT injected here — avoids circular dependency.
-    // Encryption is handled inline below.
+    @Autowired(required = false) private EmailService emailService;
 
     @Value("${app.mail.encryption-key:SprintFlow#MailKey@2024!}")
     private String encryptionKey;
@@ -154,6 +155,47 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordChanged(true);
         user.setUpdatedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    // ── Forgot / Reset Password ───────────────────────────────
+
+    public void forgotPassword(String email) {
+        User user = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("No account found with that email address"));
+
+        if (!"Active".equalsIgnoreCase(user.getStatus()))
+            throw new AuthenticationException("Account is inactive. Contact your administrator.");
+
+        // Generate a secure random token valid for 15 minutes
+        String token = UUID.randomUUID().toString().replace("-", "");
+        user.setResetToken(token);
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        if (emailService != null) {
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), token);
+        }
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        if (token == null || token.isBlank())
+            throw new AuthenticationException("Invalid reset token");
+        if (newPassword == null || newPassword.length() < 6)
+            throw new AuthenticationException("Password must be at least 6 characters");
+
+        User user = userRepository.findByResetToken(token)
+                .orElseThrow(() -> new AuthenticationException("Invalid or expired reset link"));
+
+        if (user.getResetTokenExpiry() == null || LocalDateTime.now().isAfter(user.getResetTokenExpiry()))
+            throw new AuthenticationException("Reset link has expired. Please request a new one.");
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChanged(true);
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
     }
 

@@ -189,6 +189,31 @@ public class EmailService {
     }
 
     @Async
+    public void sendPasswordResetEmail(String toEmail, String name, String token) {
+        try {
+            JavaMailSenderImpl sender = resolveManagerSender();
+            String resetLink = frontendUrl + "/reset-password?token=" + token;
+            String html = "<div style='font-family:Arial,sans-serif;max-width:520px;margin:auto;"
+                    + "border:1px solid #e5e7eb;border-radius:12px;overflow:hidden'>"
+                    + "<div style='background:linear-gradient(135deg,#1a1a2e,#f97316);padding:28px 32px'>"
+                    + "<h2 style='color:#fff;margin:0;font-size:20px'>" + appName + " — Password Reset</h2></div>"
+                    + "<div style='padding:28px 32px;background:#fff'>"
+                    + "<p style='color:#374151;font-size:15px'>Dear <strong>" + name + "</strong>,</p>"
+                    + "<p style='color:#374151;font-size:14px'>We received a request to reset your password. Click the button below to set a new password. This link expires in <strong>15 minutes</strong>.</p>"
+                    + "<div style='text-align:center;margin:28px 0'>"
+                    + "<a href='" + resetLink + "' style='background:linear-gradient(135deg,#1a1a2e,#f97316);color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block'>Reset Password</a>"
+                    + "</div>"
+                    + "<p style='color:#6b7280;font-size:12px'>Or copy this link: <a href='" + resetLink + "' style='color:#f97316'>" + resetLink + "</a></p>"
+                    + "<p style='color:#ef4444;font-size:13px'>If you did not request this, ignore this email — your password will not change.</p>"
+                    + "<p style='color:#9ca3af;font-size:12px;margin-top:24px'>System-generated — do not reply.</p>"
+                    + "</div></div>";
+            sendHtml(sender, toEmail, "[" + appName + "] Reset Your Password", html, false);
+        } catch (RuntimeException e) {
+            System.out.printf("[EmailService] sendPasswordResetEmail failed for %s: %s%n", toEmail, e.getMessage());
+        }
+    }
+
+    @Async
     public void sendAbsenceNotification(String toEmail, String employeeName,
                                         String sprintTitle, String date,
                                         String timeSlot, String trainerNote) {

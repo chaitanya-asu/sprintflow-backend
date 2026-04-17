@@ -29,6 +29,20 @@ public class AuthController {
         return ok("Login successful", authService.login(loginDTO));
     }
 
+    @Operation(summary = "Request password reset email")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponseDTO<String>> forgotPassword(@RequestBody Map<String, String> body) {
+        authService.forgotPassword(body.get("email"));
+        return ok("Password reset email sent. Check your inbox.", null);
+    }
+
+    @Operation(summary = "Reset password using token from email")
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponseDTO<String>> resetPassword(@RequestBody Map<String, String> body) {
+        authService.resetPassword(body.get("token"), body.get("newPassword"));
+        return ok("Password reset successfully. You can now log in.", null);
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDTO<String>> logout() {
         return ok("Logout successful", null);

@@ -51,8 +51,14 @@ public class User {
     @Column(name = "smtp_email", length = 150)
     private String smtpEmail;
 
-    @Column(name = "smtp_password", length = 255)  // stored encrypted
+    @Column(name = "smtp_password", length = 255)
     private String smtpPassword;
+
+    @Column(name = "reset_token", length = 255)
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private java.time.LocalDateTime resetTokenExpiry;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -107,6 +113,12 @@ public class User {
 
     public String getSmtpPassword() { return smtpPassword; }
     public void setSmtpPassword(String smtpPassword) { this.smtpPassword = smtpPassword; }
+
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+
+    public java.time.LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(java.time.LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

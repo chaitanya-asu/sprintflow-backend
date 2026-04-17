@@ -28,4 +28,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllActive();
 
     Optional<User> findByEmailIgnoreCase(String email);
+
+    Optional<User> findByResetToken(String resetToken);
 }
