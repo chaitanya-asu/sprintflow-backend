@@ -26,17 +26,25 @@ public class UserController {
 
     @Operation(
         summary     = "List users",
-        description = "Returns all users. Filter by `role` to get only trainers or HR. " +
-                      "**MANAGER only.**\n\n" +
-                      "| role param | Returns |\n|---|---|\n| `TRAINER` | All trainers |\n| `HR` | All HR users |\n| *(omit)* | All users |"
+        description = "Returns users filtered by `role`. " +
+                      "By default returns **Active only** (for dropdowns). " +
+                      "Pass `includeInactive=true` to include Inactive users (manager restore pages).\n\n" +
+                      "| role param | Returns |\n|---|---|\n| `TRAINER` | Trainers |\n| `HR` | HR users |\n| *(omit)* | All users |"
     )
     @GetMapping
     public ResponseEntity<ApiResponseDTO<List<UserDTO>>> getUsers(
             @Parameter(description = "Filter by role: TRAINER or HR", example = "TRAINER")
-            @RequestParam(required = false) String role) {
-        List<UserDTO> users = role != null
-                ? userService.getUsersByRole(role)
-                : userService.getAllUsers();
+            @RequestParam(required = false) String role,
+            @Parameter(description = "Include inactive users (manager restore flow)", example = "false")
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        List<UserDTO> users;
+        if (role != null) {
+            users = includeInactive
+                    ? userService.getAllUsersByRole(role)
+                    : userService.getUsersByRole(role);
+        } else {
+            users = userService.getAllUsers();
+        }
         return ok("Users retrieved successfully", users);
     }
 

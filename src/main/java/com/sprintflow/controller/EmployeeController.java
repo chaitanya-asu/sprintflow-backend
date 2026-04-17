@@ -26,17 +26,24 @@ public class EmployeeController {
 
     @Operation(
         summary     = "List employees",
-        description = "Returns all employees. Filter by `technology` and/or `cohort` to get sprint-specific lists."
+        description = "Returns active employees by default. Pass `status=Inactive` to include soft-deleted. Filter by `technology` and/or `cohort`."
     )
     @GetMapping
     public ResponseEntity<ApiResponseDTO<List<EmployeeDTO>>> getAll(
             @Parameter(description = "Filter by technology", example = "Java")
             @RequestParam(required = false) String technology,
             @Parameter(description = "Filter by cohort", example = "Java cohort 1")
-            @RequestParam(required = false) String cohort) {
-        List<EmployeeDTO> list = (technology != null && cohort != null)
-                ? employeeService.getByTechnologyAndCohort(technology, cohort)
-                : employeeService.getAllEmployees();
+            @RequestParam(required = false) String cohort,
+            @Parameter(description = "Filter by status — omit for Active only", example = "Active")
+            @RequestParam(required = false) String status) {
+        List<EmployeeDTO> list;
+        if (technology != null && cohort != null) {
+            list = employeeService.getByTechnologyAndCohort(technology, cohort);
+        } else if ("Inactive".equalsIgnoreCase(status)) {
+            list = employeeService.getAllEmployees(); // includes all statuses
+        } else {
+            list = employeeService.getActiveEmployees(); // default: Active only
+        }
         return ok("Employees retrieved successfully", list);
     }
 

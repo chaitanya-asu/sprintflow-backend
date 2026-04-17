@@ -12,6 +12,7 @@ import com.sprintflow.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -98,6 +99,143 @@ public class SprintService {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + id));
         sprintRepository.delete(sprint);
+    }
+
+    /**
+     * Check whether a trainer already has a sprint whose date range AND daily time slot
+     * overlap with the proposed sprint. Used by HR sprint creation form.
+     *
+     * Two date ranges overlap when: startA <= endB AND endA >= startB.
+     * Two time slots overlap when:  startA < endB  AND endA > startB  (minutes since midnight).
+     *
+     * @param trainerId   trainer user ID
+     * @param startDate   proposed sprint start date
+     * @param endDate     proposed sprint end date
+     * @param sprintStart proposed daily start time string (e.g. "09:00 AM")
+     * @param sprintEnd   proposed daily end time string   (e.g. "05:00 PM")
+     * @param excludeId   sprint ID to exclude (edit flow), null for create
+     * @return list of conflicting SprintDTOs (empty = no conflict)
+     */
+    public List<SprintDTO> checkTrainerConflict(
+            Long trainerId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String sprintStart,
+            String sprintEnd,
+            Long excludeId) {
+
+        // Find all non-completed sprints for this trainer whose date ranges overlap
+        List<Sprint> dateCandidates = sprintRepository.findTrainerOverlappingSprints(
+                trainerId, startDate, endDate, excludeId);
+
+        if (dateCandidates.isEmpty()) return Collections.emptyList();
+
+        int propStart = parseTimeToMinutes(sprintStart);
+        int propEnd   = parseTimeToMinutes(sprintEnd);
+
+        // If times can't be parsed, skip time check and return all date-overlapping sprints
+        if (propStart < 0 || propEnd < 0)
+            return dateCandidates.stream().map(this::toDTO).collect(Collectors.toList());
+
+        // Filter by time overlap: overlap when startA < endB AND endA > startB
+        return dateCandidates.stream()
+                .filter(s -> {
+                    int exStart = parseTimeToMinutes(s.getSprintStart());
+                    int exEnd   = parseTimeToMinutes(s.getSprintEnd());
+                    if (exStart < 0 || exEnd < 0) return true; // can't parse = assume conflict
+                    return propStart < exEnd && propEnd > exStart;
+                })
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Parse "HH:MM AM" or "HH:MM PM" to minutes since midnight.
+     * Returns -1 if the string is null, blank, or unparseable.
+     */
+    private int parseTimeToMinutes(String time) {
+        if (time == null || time.isBlank()) return -1;
+        try {
+            String t  = time.trim().toUpperCase();
+            boolean pm = t.endsWith("PM");
+            boolean am = t.endsWith("AM");
+            String[] parts = t.replace("AM", "").replace("PM", "").trim().split(":");
+            int h = Integer.parseInt(parts[0].trim());
+            int m = Integer.parseInt(parts[1].trim());
+            if (pm && h != 12) h += 12;
+            if (am && h == 12) h = 0;
+            return h * 60 + m;
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Check whether a trainer already has a sprint whose date range AND time slot
+     * overlap with the proposed new sprint.
+     *
+     * Time strings are in "HH:MM AM/PM" format (e.g. "09:00 AM").
+     * Two time slots overlap when: startA < endB AND endA > startB.
+     *
+     * @param trainerId     trainer user ID
+     * @param startDate     proposed sprint start date
+     * @param endDate       proposed sprint end date
+     * @param sprintStart   proposed daily start time string
+     * @param sprintEnd     proposed daily end time string
+     * @param excludeId     sprint ID to exclude (for edit flow), null for create
+     * @return list of conflicting SprintDTOs (empty = no conflict)
+     */
+    public List<SprintDTO> checkTrainerConflict(
+            Long trainerId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String sprintStart,
+            String sprintEnd,
+            Long excludeId) {
+
+        // Find all sprints for this trainer whose date ranges overlap
+        List<Sprint> dateCandidates = sprintRepository.findTrainerOverlappingSprints(
+                trainerId, startDate, endDate, excludeId);
+
+        if (dateCandidates.isEmpty()) return Collections.emptyList();
+
+        // Parse proposed time slot to minutes-since-midnight
+        int propStart = parseTimeToMinutes(sprintStart);
+        int propEnd   = parseTimeToMinutes(sprintEnd);
+
+        if (propStart < 0 || propEnd < 0) return Collections.emptyList();
+
+        // Filter by time overlap: overlap exists when startA < endB AND endA > startB
+        return dateCandidates.stream()
+                .filter(s -> {
+                    int exStart = parseTimeToMinutes(s.getSprintStart());
+                    int exEnd   = parseTimeToMinutes(s.getSprintEnd());
+                    if (exStart < 0 || exEnd < 0) return false;
+                    return propStart < exEnd && propEnd > exStart;
+                })
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Parse time string "HH:MM AM" or "HH:MM PM" to minutes since midnight.
+     * Returns -1 if unparseable.
+     */
+    private int parseTimeToMinutes(String time) {
+        if (time == null || time.isBlank()) return -1;
+        try {
+            String t = time.trim().toUpperCase();
+            boolean pm = t.endsWith("PM");
+            boolean am = t.endsWith("AM");
+            String[] parts = t.replace("AM", "").replace("PM", "").trim().split(":");
+            int h = Integer.parseInt(parts[0].trim());
+            int m = Integer.parseInt(parts[1].trim());
+            if (pm && h != 12) h += 12;
+            if (am && h == 12) h = 0;
+            return h * 60 + m;
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────

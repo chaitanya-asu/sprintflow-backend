@@ -33,7 +33,13 @@ public class UserService {
 
     public List<UserDTO> getUsersByRole(String roleStr) {
         Role role = Role.valueOf(roleStr.toUpperCase());
-        // Return ALL users (active + inactive) so manager can see and restore deleted ones
+        // Active only — used for sprint trainer dropdown and HR lists
+        return userRepository.findByRole(role).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    // Returns ALL users by role including Inactive — used by manager pages to show/restore
+    public List<UserDTO> getAllUsersByRole(String roleStr) {
+        Role role = Role.valueOf(roleStr.toUpperCase());
         return userRepository.findByRoleAll(role).stream().map(this::toDTO).collect(Collectors.toList());
     }
 

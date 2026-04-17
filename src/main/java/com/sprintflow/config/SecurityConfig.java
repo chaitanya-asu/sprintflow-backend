@@ -81,7 +81,7 @@ public class SecurityConfig {
                 // Messages — all authenticated roles
                 .requestMatchers("/api/messages/**").authenticated()
 
-                // Users — manager only (all HTTP methods)
+                // Users — manager manages all; HR can read trainers for sprint creation dropdown
                 .requestMatchers(HttpMethod.GET,    "/api/users/**").hasAnyRole("MANAGER", "HR")
                 .requestMatchers(HttpMethod.POST,   "/api/users/**").hasRole("MANAGER")
                 .requestMatchers(HttpMethod.PUT,    "/api/users/**").hasRole("MANAGER")

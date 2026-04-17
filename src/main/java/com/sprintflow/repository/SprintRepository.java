@@ -22,4 +22,17 @@ public interface SprintRepository extends JpaRepository<Sprint, Long> {
 
     @Query("SELECT s FROM Sprint s WHERE s.status IN ('Scheduled', 'On Hold') ORDER BY s.startDate ASC")
     List<Sprint> findActiveOrUpcoming();
+
+    // Find sprints for a trainer whose date range overlaps with the given range
+    // Used for trainer time-slot conflict checking
+    @Query("SELECT s FROM Sprint s WHERE s.trainer.id = :trainerId " +
+           "AND s.status != 'Completed' " +
+           "AND s.startDate <= :endDate " +
+           "AND s.endDate >= :startDate " +
+           "AND (:excludeId IS NULL OR s.id != :excludeId)")
+    List<Sprint> findTrainerOverlappingSprints(
+            @org.springframework.data.repository.query.Param("trainerId")  Long trainerId,
+            @org.springframework.data.repository.query.Param("startDate")  java.time.LocalDate startDate,
+            @org.springframework.data.repository.query.Param("endDate")    java.time.LocalDate endDate,
+            @org.springframework.data.repository.query.Param("excludeId")  Long excludeId);
 }

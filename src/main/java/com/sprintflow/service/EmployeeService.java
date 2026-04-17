@@ -28,6 +28,11 @@ public class EmployeeService {
         return employeeRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    // Returns only Active employees — used by default GET /api/employees
+    public List<EmployeeDTO> getActiveEmployees() {
+        return employeeRepository.findByStatus("Active").stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     public List<EmployeeDTO> getByTechnologyAndCohort(String technology, String cohort) {
         return employeeRepository.findByTechnologyAndCohort(technology, cohort)
                 .stream().map(this::toDTO).collect(Collectors.toList());

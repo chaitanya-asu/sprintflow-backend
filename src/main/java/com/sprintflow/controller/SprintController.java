@@ -14,13 +14,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/sprints")
@@ -33,18 +37,55 @@ public class SprintController {
 
     @Operation(
         summary     = "List all sprints",
-        description = "Returns all sprints. Filter by `status` (Scheduled | On Hold | Completed) or `technology`."
+        description = "Returns sprints. Supports `status` filter, `q` keyword search, and optional `page`/`pageSize` pagination. " +
+                      "When `page` is provided returns `{ items, total, page, pageSize }`. Otherwise returns a plain array."
     )
     @GetMapping
-    public ResponseEntity<ApiResponseDTO<List<SprintDTO>>> getAllSprints(
+    public ResponseEntity<ApiResponseDTO<Object>> getAllSprints(
             @Parameter(description = "Filter by status", example = "Scheduled")
             @RequestParam(required = false) String status,
             @Parameter(description = "Filter by technology", example = "Java")
-            @RequestParam(required = false) String technology) {
+            @RequestParam(required = false) String technology,
+            @Parameter(description = "Keyword search on title / trainer name", example = "Java")
+            @RequestParam(required = false) String q,
+            @Parameter(description = "Page number (1-based)", example = "1")
+            @RequestParam(required = false) Integer page,
+            @Parameter(description = "Page size", example = "8")
+            @RequestParam(required = false) Integer pageSize) {
+
         List<SprintDTO> sprints = status != null
                 ? sprintService.getSprintsByStatus(status)
                 : sprintService.getAllSprints();
-        return ok("Sprints retrieved successfully", sprints);
+
+        // Keyword filter
+        if (q != null && !q.isBlank()) {
+            String lq = q.trim().toLowerCase();
+            sprints = sprints.stream()
+                    .filter(s -> (s.getTitle()   != null && s.getTitle().toLowerCase().contains(lq))
+                              || (s.getTrainer() != null && s.getTrainer().toLowerCase().contains(lq)))
+                    .collect(Collectors.toList());
+        }
+
+        // Pagination — only when page param is provided
+        if (page != null && page > 0) {
+            int size  = (pageSize != null && pageSize > 0) ? pageSize : 10;
+            int total = sprints.size();
+            int from  = (page - 1) * size;
+            int to    = Math.min(from + size, total);
+            List<SprintDTO> items = from < total ? sprints.subList(from, to) : List.of();
+            Map<String, Object> paged = new HashMap<>();
+            paged.put("items",    items);
+            paged.put("total",    total);
+            paged.put("page",     page);
+            paged.put("pageSize", size);
+            return ResponseEntity.ok(ApiResponseDTO.<Object>builder()
+                    .success(true).message("Sprints retrieved successfully")
+                    .data(paged).statusCode(200).build());
+        }
+
+        return ResponseEntity.ok(ApiResponseDTO.<Object>builder()
+                .success(true).message("Sprints retrieved successfully")
+                .data(sprints).statusCode(200).build());
     }
 
     @Operation(summary = "Get sprint by ID")
@@ -141,6 +182,7 @@ public class SprintController {
 
     @Operation(
         summary     = "Enroll employee in sprint",
+        description = "Alias path used by the frontend. Delegates to EmployeeService.",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             content = @Content(examples = @ExampleObject(value = "{ \"employeeId\": 5 }"))
         )
@@ -152,12 +194,38 @@ public class SprintController {
         return ok("Employee enrolled successfully", null);
     }
 
-    @Operation(summary = "Remove employee from sprint")
+    @Operation(summary = "Remove employee from sprint",
+        description = "Alias path used by the frontend. Delegates to EmployeeService.")
     @DeleteMapping("/{id}/employees/{empId}")
     public ResponseEntity<ApiResponseDTO<String>> removeEmployee(
             @PathVariable Long id, @PathVariable Long empId) {
         employeeService.removeEmployee(id, empId);
         return ok("Employee removed from sprint", null);
+    }
+
+    @Operation(
+        summary     = "Check trainer time-slot conflict",
+        description = "Returns any existing sprints for the given trainer whose date range AND " +
+                      "daily time slot overlap with the proposed sprint. " +
+                      "Empty array = no conflict. Used by HR sprint creation form."
+    )
+    @GetMapping("/check-trainer-conflict")
+    public ResponseEntity<ApiResponseDTO<List<SprintDTO>>> checkTrainerConflict(
+            @Parameter(description = "Trainer user ID",        example = "3",          required = true)
+            @RequestParam Long trainerId,
+            @Parameter(description = "Proposed start date",    example = "2026-06-01", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Proposed end date",      example = "2026-06-30", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @Parameter(description = "Daily start time",       example = "09:00 AM",   required = true)
+            @RequestParam String sprintStart,
+            @Parameter(description = "Daily end time",         example = "05:00 PM",   required = true)
+            @RequestParam String sprintEnd,
+            @Parameter(description = "Sprint ID to exclude (edit flow)", example = "5")
+            @RequestParam(required = false) Long excludeSprintId) {
+        List<SprintDTO> conflicts = sprintService.checkTrainerConflict(
+                trainerId, startDate, endDate, sprintStart, sprintEnd, excludeSprintId);
+        return ok(conflicts.isEmpty() ? "No conflicts" : "Trainer has conflicting sprints", conflicts);
     }
 
     // ── Helpers ───────────────────────────────────────────────
