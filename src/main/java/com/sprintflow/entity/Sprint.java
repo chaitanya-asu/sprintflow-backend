@@ -1,12 +1,16 @@
 package com.sprintflow.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "sprints")
+@SQLDelete(sql = "UPDATE sprints SET deleted_at = NOW() WHERE id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Sprint {
 
     @Id
@@ -61,6 +65,10 @@ public class Sprint {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    // Soft delete timestamp
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     // Sprint → enrolled employees (M:M via junction)
     @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -120,6 +128,14 @@ public class Sprint {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+
+    // Soft delete helper methods
+    public boolean isDeleted() { return deletedAt != null; }
+    public void markAsDeleted() { this.deletedAt = LocalDateTime.now(); }
+    public void restore() { this.deletedAt = null; }
 
     public List<SprintEmployee> getEnrollments() { return enrollments; }
     public void setEnrollments(List<SprintEmployee> enrollments) { this.enrollments = enrollments; }

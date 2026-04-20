@@ -17,10 +17,10 @@ services:
     restart: unless-stopped
 
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE:      sprintflow_db
-      MYSQL_USER:          ${DB_USERNAME}
-      MYSQL_PASSWORD:      ${DB_PASSWORD}
+      MYSQL_USER:          sprintflow
+      MYSQL_PASSWORD:      ${DB_PASSWORD:-sprintflow123}
 
     volumes:
       # Persist database data across container restarts
@@ -31,7 +31,7 @@ services:
 
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
-             "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}"]
+             "-u", "sprintflow", "-psprintflow123"]
       interval: 10s
       timeout:  5s
       retries:  10
@@ -41,16 +41,16 @@ services:
     networks:
       - sprintflow-net
 
-    # Memory limit — MySQL on 2GB server
+    # Memory limit — MySQL for local development
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
 
   # ── Spring Boot Backend ──────────────────────────────────────
   backend:
     build:
-      context: ./sprintflow-backend
+      context: .
       dockerfile: Dockerfile
     container_name: sprintflow-backend
     restart: unless-stopped
@@ -63,9 +63,9 @@ services:
     environment:
       # Database — connects to mysql service by container name
       DB_URL:      jdbc:mysql://mysql:3306/sprintflow_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DDL_AUTO:    validate
+      DB_USERNAME: sprintflow
+      DB_PASSWORD: sprintflow123
+      DDL_AUTO:    ${DDL_AUTO:-update}
 
       # Security
       APP_JWT_SECRET: ${APP_JWT_SECRET}
@@ -79,8 +79,8 @@ services:
       # Swagger — disable in production
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
 
-      # JVM tuning for 2GB server
-      JAVA_OPTS: "-Xms256m -Xmx512m"
+      # JVM tuning for local development
+      JAVA_OPTS: "-Xms256m -Xmx768m"
 
     # Port 8080 is NOT exposed to the host — only accessible inside Docker network
     # Nginx proxies /api and /ws to this container
@@ -93,12 +93,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1024M
 
   # ── Nginx Frontend ───────────────────────────────────────────
   frontend:
     build:
-      context: ./sprintflow-frontend
+      context: D:/React js/demo/sprintflow-frontend-main
       dockerfile: Dockerfile
       args:
         # These are baked into the React build at image build time
@@ -115,9 +115,8 @@ services:
       - backend
 
     ports:
-      # Expose HTTP (redirects to HTTPS) and HTTPS to the host
+      # Expose HTTP only for now
       - "80:80"
-      - "443:443"
 
     volumes:
       # Mount SSL certificates generated on the host into Nginx
