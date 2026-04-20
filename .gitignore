@@ -39,3 +39,10 @@ server.log
 token.tmp
 *.log
 *.tmp
+
+### Sensitive files — never commit these ###
+HashGen.java
+application-prod.properties
+application-local.properties
+*.env
+.env
