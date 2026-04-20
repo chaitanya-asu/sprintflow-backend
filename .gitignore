@@ -46,3 +46,8 @@ application-prod.properties
 application-local.properties
 *.env
 .env
+
+### Docker deployment — generated on server, never commit ###
+docker/ssl/*.crt
+docker/ssl/*.key
+docker/ssl/*.pem

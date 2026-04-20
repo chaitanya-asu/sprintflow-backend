@@ -1,0 +1,142 @@
+# SprintFlow — Single Server Docker Compose
+# Usage:
+#   1. Copy .env.example to .env and fill in values
+#   2. docker compose up -d --build
+#
+# Services:
+#   mysql    — MySQL 8, data persisted in named volume
+#   backend  — Spring Boot 3.2 / Java 21, port 8080 (internal only)
+#   frontend — Nginx serving React build + proxying /api and /ws, ports 80/443
+
+services:
+
+  # ── MySQL 8 ─────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: sprintflow-mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE:      sprintflow_db
+      MYSQL_USER:          ${DB_USERNAME}
+      MYSQL_PASSWORD:      ${DB_PASSWORD}
+
+    volumes:
+      # Persist database data across container restarts
+      - mysql_data:/var/lib/mysql
+      # Auto-initialize schema on first start
+      # MySQL runs all .sql files in this folder on first boot (when data volume is empty)
+      - ./docker/init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout:  5s
+      retries:  10
+      start_period: 30s
+
+    # Not exposed to host — backend connects via Docker network
+    networks:
+      - sprintflow-net
+
+    # Memory limit — MySQL on 2GB server
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ── Spring Boot Backend ──────────────────────────────────────
+  backend:
+    build:
+      context: ./sprintflow-backend
+      dockerfile: Dockerfile
+    container_name: sprintflow-backend
+    restart: unless-stopped
+
+    # Wait for MySQL to be healthy before starting
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    environment:
+      # Database — connects to mysql service by container name
+      DB_URL:      jdbc:mysql://mysql:3306/sprintflow_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DDL_AUTO:    validate
+
+      # Security
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_MAIL_KEY:   ${APP_MAIL_KEY}
+
+      # CORS — frontend Nginx container is the only allowed origin
+      # In production this is https://YOUR_SERVER_IP (the Nginx HTTPS port)
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL}
+
+      # Swagger — disable in production
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+
+      # JVM tuning for 2GB server
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+
+    # Port 8080 is NOT exposed to the host — only accessible inside Docker network
+    # Nginx proxies /api and /ws to this container
+    expose:
+      - "8080"
+
+    networks:
+      - sprintflow-net
+
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # ── Nginx Frontend ───────────────────────────────────────────
+  frontend:
+    build:
+      context: ./sprintflow-frontend
+      dockerfile: Dockerfile
+      args:
+        # These are baked into the React build at image build time
+        # VITE_API_BASE_URL must be the public URL the BROWSER uses to reach the API
+        # Since Nginx proxies /api → backend, the browser calls https://YOUR_IP/api
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_WS_URL:       ${VITE_WS_URL}
+        VITE_USE_MOCK:     "false"
+
+    container_name: sprintflow-frontend
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      # Expose HTTP (redirects to HTTPS) and HTTPS to the host
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      # Mount SSL certificates generated on the host into Nginx
+      - ./docker/ssl:/etc/nginx/ssl:ro
+
+    networks:
+      - sprintflow-net
+
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+# ── Named volumes ────────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+
+# ── Internal network ─────────────────────────────────────────
+networks:
+  sprintflow-net:
+    driver: bridge
