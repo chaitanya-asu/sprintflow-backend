@@ -21,10 +21,12 @@ import java.util.stream.Collectors;
 @Service
 public class SprintService {
 
-    @Autowired private SprintRepository sprintRepository;
-    @Autowired private UserRepository userRepository;
+    @Autowired private SprintRepository  sprintRepository;
+    @Autowired private UserRepository    userRepository;
     @Autowired private EmployeeRepository employeeRepository;
-    @Autowired private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper      objectMapper;
+
+    // ── Queries ───────────────────────────────────────────────
 
     public List<SprintDTO> getAllSprints() {
         return sprintRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
@@ -43,6 +45,8 @@ public class SprintService {
         return sprintRepository.findByTrainerId(trainerId).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    // ── Mutations ─────────────────────────────────────────────
+
     public SprintDTO createSprint(SprintDTO dto, Long createdByUserId) {
         User createdBy = userRepository.findById(createdByUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + createdByUserId));
@@ -50,21 +54,11 @@ public class SprintService {
         Sprint sprint = new Sprint();
         mapDtoToEntity(dto, sprint);
         sprint.setCreatedBy(createdBy);
-        // Always default to Scheduled on creation — DTO status is ignored intentionally
         sprint.setStatus("Scheduled");
         sprint.setCreatedAt(LocalDateTime.now());
         sprint.setUpdatedAt(LocalDateTime.now());
 
-        // Assign trainer by name if provided
-        if (dto.getTrainer() != null && !dto.getTrainer().isBlank()) {
-            userRepository.findAll().stream()
-                    .filter(u -> u.getName().equalsIgnoreCase(dto.getTrainer()))
-                    .findFirst()
-                    .ifPresent(sprint::setTrainer);
-        } else if (dto.getTrainerId() != null) {
-            userRepository.findById(dto.getTrainerId()).ifPresent(sprint::setTrainer);
-        }
-
+        resolveTrainer(dto, sprint);
         return toDTO(sprintRepository.save(sprint));
     }
 
@@ -72,17 +66,7 @@ public class SprintService {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + id));
         mapDtoToEntity(dto, sprint);
-
-        // Update trainer by name or ID
-        if (dto.getTrainer() != null && !dto.getTrainer().isBlank()) {
-            userRepository.findAll().stream()
-                    .filter(u -> u.getName().equalsIgnoreCase(dto.getTrainer()))
-                    .findFirst()
-                    .ifPresent(sprint::setTrainer);
-        } else if (dto.getTrainerId() != null) {
-            userRepository.findById(dto.getTrainerId()).ifPresent(sprint::setTrainer);
-        }
-
+        resolveTrainer(dto, sprint);
         sprint.setUpdatedAt(LocalDateTime.now());
         return toDTO(sprintRepository.save(sprint));
     }
@@ -101,20 +85,16 @@ public class SprintService {
         sprintRepository.delete(sprint);
     }
 
+    // ── Trainer conflict check ────────────────────────────────
+
     /**
-     * Check whether a trainer already has a sprint whose date range AND daily time slot
-     * overlap with the proposed sprint. Used by HR sprint creation form.
+     * Returns sprints for the given trainer whose date range AND daily time slot
+     * overlap with the proposed sprint. Empty list = no conflict.
      *
-     * Two date ranges overlap when: startA <= endB AND endA >= startB.
-     * Two time slots overlap when:  startA < endB  AND endA > startB  (minutes since midnight).
+     * Date overlap:  startA <= endB AND endA >= startB
+     * Time overlap:  startA < endB  AND endA > startB  (minutes since midnight)
      *
-     * @param trainerId   trainer user ID
-     * @param startDate   proposed sprint start date
-     * @param endDate     proposed sprint end date
-     * @param sprintStart proposed daily start time string (e.g. "09:00 AM")
-     * @param sprintEnd   proposed daily end time string   (e.g. "05:00 PM")
-     * @param excludeId   sprint ID to exclude (edit flow), null for create
-     * @return list of conflicting SprintDTOs (empty = no conflict)
+     * @param excludeId sprint ID to skip (edit flow) — pass null for create
      */
     public List<SprintDTO> checkTrainerConflict(
             Long trainerId,
@@ -124,7 +104,6 @@ public class SprintService {
             String sprintEnd,
             Long excludeId) {
 
-        // Find all non-completed sprints for this trainer whose date ranges overlap
         List<Sprint> dateCandidates = sprintRepository.findTrainerOverlappingSprints(
                 trainerId, startDate, endDate, excludeId);
 
@@ -133,16 +112,15 @@ public class SprintService {
         int propStart = parseTimeToMinutes(sprintStart);
         int propEnd   = parseTimeToMinutes(sprintEnd);
 
-        // If times can't be parsed, skip time check and return all date-overlapping sprints
+        // If times can't be parsed, return all date-overlapping sprints as conflicts
         if (propStart < 0 || propEnd < 0)
             return dateCandidates.stream().map(this::toDTO).collect(Collectors.toList());
 
-        // Filter by time overlap: overlap when startA < endB AND endA > startB
         return dateCandidates.stream()
                 .filter(s -> {
                     int exStart = parseTimeToMinutes(s.getSprintStart());
                     int exEnd   = parseTimeToMinutes(s.getSprintEnd());
-                    if (exStart < 0 || exEnd < 0) return true; // can't parse = assume conflict
+                    if (exStart < 0 || exEnd < 0) return true; // unparseable = assume conflict
                     return propStart < exEnd && propEnd > exStart;
                 })
                 .map(this::toDTO)
@@ -151,12 +129,12 @@ public class SprintService {
 
     /**
      * Parse "HH:MM AM" or "HH:MM PM" to minutes since midnight.
-     * Returns -1 if the string is null, blank, or unparseable.
+     * Returns -1 if null, blank, or unparseable.
      */
     private int parseTimeToMinutes(String time) {
         if (time == null || time.isBlank()) return -1;
         try {
-            String t  = time.trim().toUpperCase();
+            String t   = time.trim().toUpperCase();
             boolean pm = t.endsWith("PM");
             boolean am = t.endsWith("AM");
             String[] parts = t.replace("AM", "").replace("PM", "").trim().split(":");
@@ -170,93 +148,35 @@ public class SprintService {
         }
     }
 
-    /**
-     * Check whether a trainer already has a sprint whose date range AND time slot
-     * overlap with the proposed new sprint.
-     *
-     * Time strings are in "HH:MM AM/PM" format (e.g. "09:00 AM").
-     * Two time slots overlap when: startA < endB AND endA > startB.
-     *
-     * @param trainerId     trainer user ID
-     * @param startDate     proposed sprint start date
-     * @param endDate       proposed sprint end date
-     * @param sprintStart   proposed daily start time string
-     * @param sprintEnd     proposed daily end time string
-     * @param excludeId     sprint ID to exclude (for edit flow), null for create
-     * @return list of conflicting SprintDTOs (empty = no conflict)
-     */
-    public List<SprintDTO> checkTrainerConflict(
-            Long trainerId,
-            LocalDate startDate,
-            LocalDate endDate,
-            String sprintStart,
-            String sprintEnd,
-            Long excludeId) {
+    // ── Helpers ───────────────────────────────────────────────
 
-        // Find all sprints for this trainer whose date ranges overlap
-        List<Sprint> dateCandidates = sprintRepository.findTrainerOverlappingSprints(
-                trainerId, startDate, endDate, excludeId);
-
-        if (dateCandidates.isEmpty()) return Collections.emptyList();
-
-        // Parse proposed time slot to minutes-since-midnight
-        int propStart = parseTimeToMinutes(sprintStart);
-        int propEnd   = parseTimeToMinutes(sprintEnd);
-
-        if (propStart < 0 || propEnd < 0) return Collections.emptyList();
-
-        // Filter by time overlap: overlap exists when startA < endB AND endA > startB
-        return dateCandidates.stream()
-                .filter(s -> {
-                    int exStart = parseTimeToMinutes(s.getSprintStart());
-                    int exEnd   = parseTimeToMinutes(s.getSprintEnd());
-                    if (exStart < 0 || exEnd < 0) return false;
-                    return propStart < exEnd && propEnd > exStart;
-                })
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Parse time string "HH:MM AM" or "HH:MM PM" to minutes since midnight.
-     * Returns -1 if unparseable.
-     */
-    private int parseTimeToMinutes(String time) {
-        if (time == null || time.isBlank()) return -1;
-        try {
-            String t = time.trim().toUpperCase();
-            boolean pm = t.endsWith("PM");
-            boolean am = t.endsWith("AM");
-            String[] parts = t.replace("AM", "").replace("PM", "").trim().split(":");
-            int h = Integer.parseInt(parts[0].trim());
-            int m = Integer.parseInt(parts[1].trim());
-            if (pm && h != 12) h += 12;
-            if (am && h == 12) h = 0;
-            return h * 60 + m;
-        } catch (Exception e) {
-            return -1;
+    /** Resolve trainer entity from DTO name or ID and set on sprint. */
+    private void resolveTrainer(SprintDTO dto, Sprint sprint) {
+        if (dto.getTrainer() != null && !dto.getTrainer().isBlank()) {
+            userRepository.findAll().stream()
+                    .filter(u -> u.getName().equalsIgnoreCase(dto.getTrainer()))
+                    .findFirst()
+                    .ifPresent(sprint::setTrainer);
+        } else if (dto.getTrainerId() != null) {
+            userRepository.findById(dto.getTrainerId()).ifPresent(sprint::setTrainer);
         }
     }
-
-    // ── Helpers ──────────────────────────────────────────────
 
     private void mapDtoToEntity(SprintDTO dto, Sprint sprint) {
-        if (dto.getTitle()      != null) sprint.setTitle(dto.getTitle());
-        if (dto.getTechnology() != null) sprint.setTechnology(dto.getTechnology());
-        if (dto.getCohort()     != null) sprint.setCohort(dto.getCohort());
-        if (dto.getRoom()       != null) sprint.setRoom(dto.getRoom());
-        if (dto.getStartDate()  != null) sprint.setStartDate(dto.getStartDate());
-        if (dto.getEndDate()    != null) sprint.setEndDate(dto.getEndDate());
-        if (dto.getSprintStart()!= null) sprint.setSprintStart(dto.getSprintStart());
-        if (dto.getSprintEnd()  != null) sprint.setSprintEnd(dto.getSprintEnd());
-        if (dto.getStatus()     != null) sprint.setStatus(dto.getStatus());
+        if (dto.getTitle()       != null) sprint.setTitle(dto.getTitle());
+        if (dto.getTechnology()  != null) sprint.setTechnology(dto.getTechnology());
+        if (dto.getCohort()      != null) sprint.setCohort(dto.getCohort());
+        if (dto.getRoom()        != null) sprint.setRoom(dto.getRoom());
+        if (dto.getStartDate()   != null) sprint.setStartDate(dto.getStartDate());
+        if (dto.getEndDate()     != null) sprint.setEndDate(dto.getEndDate());
+        if (dto.getSprintStart() != null) sprint.setSprintStart(dto.getSprintStart());
+        if (dto.getSprintEnd()   != null) sprint.setSprintEnd(dto.getSprintEnd());
+        if (dto.getStatus()      != null) sprint.setStatus(dto.getStatus());
         if (dto.getInstructions()!= null) sprint.setInstructions(dto.getInstructions());
 
-        // Serialize cohorts list to JSON
         if (dto.getCohorts() != null && !dto.getCohorts().isEmpty()) {
             try {
                 sprint.setCohortsJson(objectMapper.writeValueAsString(dto.getCohorts()));
-                // Set primary cohort from first pair
                 sprint.setCohort(dto.getCohorts().get(0).getCohort());
                 sprint.setTechnology(dto.getCohorts().get(0).getTechnology());
             } catch (Exception ignored) {}
@@ -287,7 +207,6 @@ public class SprintService {
             dto.setTrainer(sprint.getTrainer().getName());
         }
 
-        // Deserialize cohorts JSON
         if (sprint.getCohortsJson() != null) {
             try {
                 List<SprintDTO.CohortPair> pairs = objectMapper.readValue(
@@ -300,7 +219,6 @@ public class SprintService {
                     new SprintDTO.CohortPair(sprint.getTechnology(), sprint.getCohort())));
         }
 
-        // Count employees from DB matching sprint cohort pairs
         int count = 0;
         List<SprintDTO.CohortPair> pairs = dto.getCohorts() != null ? dto.getCohorts() : Collections.emptyList();
         for (SprintDTO.CohortPair pair : pairs) {
