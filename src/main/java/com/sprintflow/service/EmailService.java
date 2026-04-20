@@ -25,7 +25,7 @@ public class EmailService {
     @Value("${spring.application.name:SprintFlow}")
     private String appName;
 
-    @Value("${app.mail.encryption-key:SprintFlow#MailKey@2024!}")
+    @Value("${app.mail.encryption-key}")
     private String encryptionKey;
 
     @Value("${app.frontend.url:http://localhost:5173}")

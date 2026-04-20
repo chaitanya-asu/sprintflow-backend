@@ -2,6 +2,7 @@ package com.sprintflow.config;
 
 import com.sprintflow.websocket.JwtChannelInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -16,25 +17,26 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Autowired
     private JwtChannelInterceptor jwtChannelInterceptor;
 
+    // Reads the same CORS origins used by the REST API
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:3000}")
+    private String allowedOriginsRaw;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // In-memory broker for topics and queues
         registry.enableSimpleBroker("/topic", "/queue");
-        // Prefix for messages routed to @MessageMapping methods
         registry.setApplicationDestinationPrefixes("/app");
-        // Prefix for user-specific destinations
         registry.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        String[] origins = allowedOriginsRaw.split(",");
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOrigins(origins)
                 .withSockJS()
                 .setSessionCookieNeeded(false);
     }
 
-    // Attach JWT interceptor to the inbound channel so every STOMP frame is authenticated
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(jwtChannelInterceptor);
