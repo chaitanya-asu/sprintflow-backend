@@ -98,7 +98,7 @@ services:
   # ── Nginx Frontend ───────────────────────────────────────────
   frontend:
     build:
-      context: D:/React js/demo/sprintflow-frontend-main
+      context: ${FRONTEND_PATH:-../sprintflow-frontend}
       dockerfile: Dockerfile
       args:
         # These are baked into the React build at image build time
