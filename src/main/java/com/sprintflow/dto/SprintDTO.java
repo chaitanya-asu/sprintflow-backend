@@ -13,7 +13,10 @@ public class SprintDTO {
 
     private Long id;
     private String title;
+    private String sprintType;              // TECHNOLOGY, COMMUNICATION
     private String technology;
+    private String sprintSubject;           // Spring Boot, Django, etc.
+    private String sprintCommunicationType; // Soft Skills, Leadership, etc.
     private String cohort;
     private List<CohortPair> cohorts;
     private Long trainerId;
@@ -65,8 +68,17 @@ public class SprintDTO {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
+    public String getSprintType() { return sprintType; }
+    public void setSprintType(String sprintType) { this.sprintType = sprintType; }
+
     public String getTechnology() { return technology; }
     public void setTechnology(String technology) { this.technology = technology; }
+
+    public String getSprintSubject() { return sprintSubject; }
+    public void setSprintSubject(String sprintSubject) { this.sprintSubject = sprintSubject; }
+
+    public String getSprintCommunicationType() { return sprintCommunicationType; }
+    public void setSprintCommunicationType(String sprintCommunicationType) { this.sprintCommunicationType = sprintCommunicationType; }
 
     public String getCohort() { return cohort; }
     public void setCohort(String cohort) { this.cohort = cohort; }

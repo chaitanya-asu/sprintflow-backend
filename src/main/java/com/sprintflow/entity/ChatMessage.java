@@ -25,8 +25,11 @@ public class ChatMessage {
     @Column(name = "sender_role",     nullable = false, length = 20)
     private String senderRole;
 
-    @Column(name = "recipient_email", nullable = false, length = 150)
+    @Column(name = "recipient_email", length = 150)
     private String recipientEmail;
+
+    @Column(name = "recipient_group_id")
+    private Long recipientGroupId;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -63,6 +66,8 @@ public class ChatMessage {
     public void setSenderRole(String v)          { this.senderRole = v; }
     public String getRecipientEmail()            { return recipientEmail; }
     public void setRecipientEmail(String v)      { this.recipientEmail = v; }
+    public Long getRecipientGroupId()            { return recipientGroupId; }
+    public void setRecipientGroupId(Long v)      { this.recipientGroupId = v; }
     public String getContent()                   { return content; }
     public void setContent(String v)             { this.content = v; }
     public LocalDateTime getSentAt()             { return sentAt; }

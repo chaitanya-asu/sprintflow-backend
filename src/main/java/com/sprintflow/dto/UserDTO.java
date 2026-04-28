@@ -19,6 +19,10 @@ public class UserDTO {
     private String phone;
     private String department;
     private String trainerRole;
+    private String trainerType;              // TECHNOLOGY, COMMUNICATION
+    private String trainerTechnology;        // Java, Python, etc.
+    private String trainerSubject;           // Spring Boot, Django, etc.
+    private String trainerCommunicationType; // Soft Skills, Leadership, etc.
     private String status;
 
     @JsonDeserialize(using = LocalDateDeserializer.class)
@@ -57,6 +61,18 @@ public class UserDTO {
 
     public String getTrainerRole() { return trainerRole; }
     public void setTrainerRole(String trainerRole) { this.trainerRole = trainerRole; }
+
+    public String getTrainerType() { return trainerType; }
+    public void setTrainerType(String trainerType) { this.trainerType = trainerType; }
+
+    public String getTrainerTechnology() { return trainerTechnology; }
+    public void setTrainerTechnology(String trainerTechnology) { this.trainerTechnology = trainerTechnology; }
+
+    public String getTrainerSubject() { return trainerSubject; }
+    public void setTrainerSubject(String trainerSubject) { this.trainerSubject = trainerSubject; }
+
+    public String getTrainerCommunicationType() { return trainerCommunicationType; }
+    public void setTrainerCommunicationType(String trainerCommunicationType) { this.trainerCommunicationType = trainerCommunicationType; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

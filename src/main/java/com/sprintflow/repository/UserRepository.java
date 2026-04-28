@@ -27,7 +27,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.status = 'Active'")
     List<User> findAllActive();
 
-    Optional<User> findByEmailIgnoreCase(String email);
+    java.util.Optional<User> findByName(String name);
 
-    Optional<User> findByResetToken(String resetToken);
+    java.util.Optional<User> findByEmailIgnoreCase(String email);
+
+    java.util.Optional<User> findByResetToken(String resetToken);
 }

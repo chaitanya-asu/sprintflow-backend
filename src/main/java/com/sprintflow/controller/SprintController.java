@@ -3,6 +3,7 @@ package com.sprintflow.controller;
 import com.sprintflow.dto.SprintDTO;
 import com.sprintflow.dto.ApiResponseDTO;
 import com.sprintflow.dto.EmployeeDTO;
+import com.sprintflow.dto.RoomAvailabilityDTO;
 import com.sprintflow.repository.UserRepository;
 import com.sprintflow.service.SprintService;
 import com.sprintflow.service.EmployeeService;
@@ -78,14 +79,10 @@ public class SprintController {
             paged.put("total",    total);
             paged.put("page",     page);
             paged.put("pageSize", size);
-            return ResponseEntity.ok(ApiResponseDTO.<Object>builder()
-                    .success(true).message("Sprints retrieved successfully")
-                    .data(paged).statusCode(200).build());
+            return ok("Sprints retrieved successfully", paged);
         }
 
-        return ResponseEntity.ok(ApiResponseDTO.<Object>builder()
-                .success(true).message("Sprints retrieved successfully")
-                .data(sprints).statusCode(200).build());
+        return ok("Sprints retrieved successfully", sprints);
     }
 
     @Operation(summary = "Get sprint by ID")
@@ -226,6 +223,12 @@ public class SprintController {
         List<SprintDTO> conflicts = sprintService.checkTrainerConflict(
                 trainerId, startDate, endDate, sprintStart, sprintEnd, excludeSprintId);
         return ok(conflicts.isEmpty() ? "No conflicts" : "Trainer has conflicting sprints", conflicts);
+    }
+
+    @Operation(summary = "Get room availability and bookings")
+    @GetMapping("/rooms/availability")
+    public ResponseEntity<ApiResponseDTO<List<RoomAvailabilityDTO>>> getRoomAvailability() {
+        return ok("Room availability retrieved", sprintService.getRoomAvailability());
     }
 
     // ── Helpers ───────────────────────────────────────────────

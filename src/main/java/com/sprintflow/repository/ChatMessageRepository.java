@@ -19,6 +19,9 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
         """)
     List<ChatMessage> findConversation(@Param("a") String emailA, @Param("b") String emailB);
 
+    @Query("SELECT m FROM ChatMessage m WHERE m.recipientGroupId = :groupId ORDER BY m.sentAt ASC")
+    List<ChatMessage> findByRecipientGroupId(@Param("groupId") Long groupId);
+
     @Query("""
         SELECT DISTINCT
             CASE WHEN m.senderEmail = :email THEN m.recipientEmail

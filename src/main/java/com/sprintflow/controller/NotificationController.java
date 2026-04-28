@@ -1,0 +1,78 @@
+package com.sprintflow.controller;
+
+import com.sprintflow.dto.ApiResponseDTO;
+import com.sprintflow.entity.Notification;
+import com.sprintflow.repository.NotificationRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/notifications")
+@Tag(name = "Notifications", description = "User notification and audit logs")
+public class NotificationController {
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Operation(summary = "Get all notifications for current user")
+    @GetMapping
+    public ResponseEntity<ApiResponseDTO<List<Notification>>> getAll(Authentication auth) {
+        String email = auth.getName();
+        return ok("Notifications retrieved", notificationRepository.findByUserEmailOrderByCreatedAtDesc(email));
+    }
+
+    @Operation(summary = "Get unread count")
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponseDTO<Map<String, Long>>> getUnreadCount(Authentication auth) {
+        String email = auth.getName();
+        long count = notificationRepository.countByUserEmailAndReadFalse(email);
+        return ok("Unread count retrieved", Map.of("count", count));
+    }
+
+    @Operation(summary = "Mark notification as read")
+    @PutMapping("/{id}/read")
+    public ResponseEntity<ApiResponseDTO<String>> markAsRead(@PathVariable Long id) {
+        notificationRepository.findById(id).ifPresent(n -> {
+            n.setRead(true);
+            notificationRepository.save(n);
+        });
+        return ok("Marked as read", null);
+    }
+
+    @Operation(summary = "Mark all as read")
+    @PutMapping("/mark-all-read")
+    public ResponseEntity<ApiResponseDTO<String>> markAllRead(Authentication auth) {
+        String email = auth.getName();
+        List<Notification> unread = notificationRepository.findByUserEmailAndReadFalse(email);
+        unread.forEach(n -> n.setRead(true));
+        notificationRepository.saveAll(unread);
+        return ok("All marked as read", null);
+    }
+
+    @Operation(summary = "Delete notification")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponseDTO<String>> delete(@PathVariable Long id) {
+        notificationRepository.deleteById(id);
+        return ok("Deleted", null);
+    }
+
+    @Operation(summary = "Delete all notifications for current user")
+    @DeleteMapping("/all")
+    public ResponseEntity<ApiResponseDTO<String>> deleteAll(Authentication auth) {
+        String email = auth.getName();
+        notificationRepository.deleteByUserEmail(email);
+        return ok("All deleted", null);
+    }
+
+    private <T> ResponseEntity<ApiResponseDTO<T>> ok(String message, T data) {
+        return ResponseEntity.ok(ApiResponseDTO.<T>builder()
+                .success(true).message(message).data(data).statusCode(200).build());
+    }
+}

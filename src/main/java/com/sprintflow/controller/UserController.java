@@ -48,6 +48,21 @@ public class UserController {
         return ok("Users retrieved successfully", users);
     }
 
+    @Operation(
+        summary     = "Filter trainers by type and technology",
+        description = "Returns trainers filtered by trainer type (TECHNOLOGY/COMMUNICATION) and optionally by technology. " +
+                      "Used in HR Create Sprint form to show only relevant trainers."
+    )
+    @GetMapping("/trainers/filter")
+    public ResponseEntity<ApiResponseDTO<List<UserDTO>>> filterTrainers(
+            @Parameter(description = "Trainer type: TECHNOLOGY or COMMUNICATION", example = "TECHNOLOGY")
+            @RequestParam(required = false) String type,
+            @Parameter(description = "Technology filter (only for TECHNOLOGY type): Java, Python, Devops, DotNet, SalesForce", example = "Java")
+            @RequestParam(required = false) String technology) {
+        List<UserDTO> trainers = userService.filterTrainersByTypeAndTechnology(type, technology);
+        return ok("Trainers filtered successfully", trainers);
+    }
+
     @Operation(summary = "Get user by ID")
     @ApiResponse(responseCode = "404", description = "User not found")
     @GetMapping("/{id}")

@@ -20,8 +20,17 @@ public class Sprint {
     @Column(nullable = false, length = 150)
     private String title;
 
+    @Column(name = "sprint_type", length = 20)
+    private String sprintType; // TECHNOLOGY, COMMUNICATION
+
     @Column(length = 20)
     private String technology; // Java, Python, Devops, DotNet, SalesForce
+
+    @Column(name = "sprint_subject", length = 100)
+    private String sprintSubject; // Spring Boot, Django, etc.
+
+    @Column(name = "sprint_communication_type", length = 100)
+    private String sprintCommunicationType; // Soft Skills, Leadership, etc.
 
     @Column(length = 50)
     private String cohort; // primary cohort (first pair)
@@ -87,8 +96,17 @@ public class Sprint {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
+    public String getSprintType() { return sprintType; }
+    public void setSprintType(String sprintType) { this.sprintType = sprintType; }
+
     public String getTechnology() { return technology; }
     public void setTechnology(String technology) { this.technology = technology; }
+
+    public String getSprintSubject() { return sprintSubject; }
+    public void setSprintSubject(String sprintSubject) { this.sprintSubject = sprintSubject; }
+
+    public String getSprintCommunicationType() { return sprintCommunicationType; }
+    public void setSprintCommunicationType(String sprintCommunicationType) { this.sprintCommunicationType = sprintCommunicationType; }
 
     public String getCohort() { return cohort; }
     public void setCohort(String cohort) { this.cohort = cohort; }
