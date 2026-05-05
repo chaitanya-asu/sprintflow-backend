@@ -1,349 +1,340 @@
-# 🎯 SprintFlow Backend - Quick Reference Card
+# SprintFlow - Quick Reference Guide
 
-## ⚡ 30-Second Summary
+## 🚀 Quick Start
 
-Your **SprintFlow backend is fully implemented**:
-- ✅ 38 REST API endpoints
-- ✅ JWT authentication
-- ✅ User management
-- ✅ Sprint management
-- ✅ Attendance tracking
-- ✅ Complete documentation
+### Clone & Setup (5 minutes)
 
----
-
-## 🚀 Start Backend in 2 Steps
-
+**Frontend:**
 ```bash
-# Step 1: Build
-cd C:\SpringBoot\POC\sprintflow-backend && mvn clean install
+git clone https://github.com/chaitanya-asu/sprintflow-frontend.git
+cd sprintflow-frontend
+git checkout main
+git pull origin main
+npm install
+npm run dev
+# Open http://localhost:5173
+```
 
-# Step 2: Run
+**Backend:**
+```bash
+git clone https://github.com/chaitanya-asu/sprintflow-backend.git
+cd sprintflow-backend
+git checkout main
+git pull origin main
+mvn clean install
 mvn spring-boot:run
+# Runs on http://localhost:8080
 ```
 
-✓ Access: http://localhost:8080/api/health
+**Database:**
+```bash
+mysql -u root -p
+CREATE DATABASE sprintflow_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE sprintflow_db;
+SOURCE schema.sql;
+SOURCE MASTER_SEED.sql;
+```
 
 ---
 
-## 🎨 Start Frontend in 2 Steps
+## 📊 Data Summary
 
+| Entity | Count | Details |
+|--------|-------|---------|
+| Users | 5 | 2 Managers, 2 HR, 1 Trainer |
+| Rooms | 9 | Training rooms A-D + 5 additional |
+| Employees | 73 | 5 technologies, 6 cohorts |
+| Sprints | 5 | One per technology |
+| Attendance | 73 | Sample records for all employees |
+
+---
+
+## 🔐 Login Credentials
+
+**Default Password:** Admin@123
+
+| Role | Email | Name |
+|------|-------|------|
+| Manager | surya@sprintflow.com | Surya Prakash |
+| Manager | a.pasam@ajacs.in | Aswini Pasam |
+| HR | s.lakkampally@ajacs.in | Satwika |
+| HR | nikitha@ajacs.in | Nikitha |
+| Trainer | s.posanapally@ajacs.in | Surya Posanapally |
+
+---
+
+## 📁 Project Structure
+
+### Frontend (`src/`)
+```
+├── components/          # Shared UI components
+├── context/             # State management (Auth, AppData, etc.)
+├── features/
+│   ├── trainer/         # Trainer module
+│   ├── hr/              # HR module
+│   ├── manager/         # Manager module
+│   └── sprint/          # Sprint management
+├── pages/               # Shared pages (Login, Chat, Profile)
+├── routes/              # Route configuration
+├── services/            # API services
+├── theme/               # Role-specific themes
+└── utils/               # Helper functions
+```
+
+### Backend (`src/main/java/com/sprintflow/`)
+```
+├── config/              # Spring configuration
+├── controller/          # REST endpoints
+├── dto/                 # Data transfer objects
+├── entity/              # JPA entities
+├── repository/          # Data access
+├── service/             # Business logic
+├── security/            # JWT & security
+└── validation/          # Custom validators
+```
+
+---
+
+## 🎨 Themes
+
+| Role | Colors | Sidebar |
+|------|--------|---------|
+| Trainer | Teal gradient | #0d4f4a → #14b8a6 |
+| HR | Rose/Red gradient | #7a1d2e → #D45769 |
+| Manager | Dark navy + Orange | #1a1a2e + #f97316 |
+
+---
+
+## 📚 Key Files
+
+### Frontend
+- `src/routes/AppRoutes.jsx` - All routes
+- `src/context/AppDataContext.jsx` - Global data
+- `src/services/api.js` - API base + JWT
+- `src/theme/trainer.js` - Trainer theme
+
+### Backend
+- `src/main/resources/db/migration/` - Flyway migrations
+- `src/main/java/com/sprintflow/config/SecurityConfig.java` - JWT config
+- `src/main/java/com/sprintflow/service/AttendanceService.java` - Attendance logic
+- `MASTER_SEED.sql` - Complete seed data
+
+---
+
+## 🔗 API Endpoints
+
+### Authentication
+- `POST /api/auth/login` - Login
+- `POST /api/auth/refresh` - Refresh token
+- `POST /api/auth/forgot-password` - Forgot password
+- `POST /api/auth/reset-password` - Reset password
+
+### Sprints
+- `GET /api/sprints` - List all sprints
+- `GET /api/sprints/{id}` - Get sprint details
+- `POST /api/sprints` - Create sprint
+- `PUT /api/sprints/{id}` - Update sprint
+- `DELETE /api/sprints/{id}` - Delete sprint
+
+### Attendance
+- `GET /api/attendance/sprint/{sprintId}` - Get sprint attendance
+- `POST /api/attendance` - Mark attendance
+- `PUT /api/attendance/{id}` - Update attendance
+
+### Employees
+- `GET /api/employees` - List employees
+- `GET /api/employees/{id}` - Get employee
+- `POST /api/employees` - Create employee
+- `PUT /api/employees/{id}` - Update employee
+
+### Rooms
+- `GET /api/rooms` - List rooms
+- `GET /api/rooms/availability` - Check availability
+
+---
+
+## 🐛 Common Issues & Fixes
+
+### Frontend
+
+**Issue:** Old UI showing
 ```bash
-# Step 1: Configure
-# Create/Update .env file in frontend root:
+git pull origin main
+npm install
+npm run dev
+# Clear browser cache: Ctrl+Shift+Delete
+# Hard refresh: Ctrl+Shift+R
+```
+
+**Issue:** Port 5173 in use
+```bash
+npm run dev -- --port 5174
+```
+
+**Issue:** Module not found
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Backend
+
+**Issue:** Database connection fails
+```bash
+# Check MySQL is running
+# Check .env has correct credentials
+# Check database exists: CREATE DATABASE sprintflow_db;
+```
+
+**Issue:** Migrations fail
+```bash
+# Check schema.sql was run first
+# Check MASTER_SEED.sql syntax
+# Check MySQL version (5.7+)
+```
+
+**Issue:** Port 8080 in use
+```bash
+# Change in application.properties
+server.port=8081
+```
+
+### Database
+
+**Issue:** Cohort constraint violation
+```sql
+-- Ensure cohort format is C1, C2, C3, etc.
+SELECT DISTINCT cohort FROM employees;
+```
+
+**Issue:** Foreign key constraint fails
+```sql
+-- Check users exist before creating sprints
+SELECT COUNT(*) FROM users;
+SELECT COUNT(*) FROM sprints;
+```
+
+---
+
+## 📝 Environment Variables
+
+### Frontend (`.env`)
+```env
+VITE_USE_MOCK=false
 VITE_API_BASE_URL=http://localhost:8080/api
-
-# Step 2: Run
-cd C:\Users\2531019\my-project\sprintflow-frontend && npm run dev
+VITE_WS_URL=http://localhost:8080
 ```
 
-✓ Access: http://localhost:5173
-
----
-
-## 📋 API Quick Reference
-
-### Auth (No token needed)
-```bash
-POST   /auth/login          # Login
-POST   /auth/register       # Register
-GET    /auth/me             # Current user
-POST   /auth/logout         # Logout
-GET    /auth/validate       # Validate token
-```
-
-### Users (Token needed)
-```bash
-GET    /users               # All users
-GET    /users/{id}          # By ID
-GET    /users/role/{role}   # By role
-POST   /users               # Create
-PUT    /users/{id}          # Update
-DELETE /users/{id}          # Delete
-```
-
-### Sprints (Token needed)
-```bash
-GET    /sprints                          # All
-GET    /sprints/{id}                     # By ID
-GET    /sprints/status/{status}          # By status
-GET    /sprints/trainer/{id}/active      # Trainer sprints
-POST   /sprints?trainerId={id}           # Create
-PUT    /sprints/{id}                     # Update
-DELETE /sprints/{id}                     # Delete
-```
-
-### Attendance (Token needed)
-```bash
-GET    /tasks                                       # All
-GET    /tasks/sprint/{id}                          # Sprint tasks
-GET    /tasks/attendance/sprint/{id}/date/{date}   # Daily
-POST   /tasks/attendance                           # Mark
-PUT    /tasks/{id}/attendance/{status}             # Update
-```
-
-### Health (No token needed)
-```bash
-GET    /health              # Service health
-GET    /health/db           # Database health
-```
-
----
-
-## 🔑 Sample Login Request
-
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "password123"
-  }'
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGc...",  // Copy this!
-    "email": "test@example.com",
-    "role": "TRAINER"
-  }
-}
-```
-
----
-
-## 🎫 Using Token in Requests
-
-Add to **Headers:**
-```
-Authorization: Bearer eyJhbGc...
-```
-
-**Example:**
-```bash
-curl -X GET http://localhost:8080/api/users \
-  -H "Authorization: Bearer eyJhbGc..."
-```
-
----
-
-## 📊 Response Format
-
-All responses:
-```json
-{
-  "success": true/false,
-  "message": "Description",
-  "statusCode": 200/400/401/404/500,
-  "data": { /* actual data */ }
-}
-```
-
----
-
-## 🔐 User Roles
-
-| Role | Can Do |
-|------|--------|
-| **ADMIN** | Everything |
-| **HR** | Manage sprints & users |
-| **MANAGER** | View attendance |
-| **TRAINER** | Create sprints, mark attendance |
-| **EMPLOYEE** | View own data |
-
----
-
-## 🛠 Configuration
-
-**Backend Settings:** `src/main/resources/application.properties`
+### Backend (`application.properties`)
 ```properties
-server.port=8080
 spring.datasource.url=jdbc:mysql://localhost:3306/sprintflow_db
 spring.datasource.username=root
-spring.datasource.password=root
-jwt.expiration=86400000  # 24 hours
-```
-
-**Frontend Settings:** `.env`
-```env
-VITE_API_BASE_URL=http://localhost:8080/api
+spring.datasource.password=<password>
+spring.jpa.hibernate.ddl-auto=validate
+spring.flyway.enabled=true
 ```
 
 ---
 
-## 📚 Documentation Map
+## 🧪 Testing
 
-| Need | File |
-|------|------|
-| Quick start | **GETTING_STARTED.md** |
-| API details | **API_DOCUMENTATION.md** |
-| Integration code | **INTEGRATION_GUIDE.md** |
-| Architecture | **API_PLAN.md** |
-| What's done | **IMPLEMENTATION_SUMMARY.md** |
-| Full report | **COMPLETE_SETUP_REPORT.md** |
-
----
-
-## 🆘 Quick Troubleshooting
-
-### Backend won't start
+### Frontend
 ```bash
-# Check Java
-java -version
-
-# Check MySQL
-mysql -u root -p
+npm run test              # Unit tests (Vitest)
+npm run test:watch       # Watch mode
+npm run e2e              # E2E tests (Playwright)
 ```
 
-### CORS error
-- ✓ Verify backend running on 8080
-- ✓ Check .env VITE_API_BASE_URL is correct
-- ✓ Restart frontend
-
-### Login fails
-- ✓ Register user first
-- ✓ Check email/password
-- ✓ Look at backend logs
-
-### Token expired
-- ✓ Valid for 24 hours
-- ✓ Login again to get new token
-
----
-
-## 🎯 Common Tasks
-
-### Register User
+### Backend
 ```bash
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "pass123",
-    "firstName": "John",
-    "lastName": "Doe",
-    "role": "EMPLOYEE"
-  }'
+mvn test                 # Run tests
+mvn test -Dtest=ClassName  # Run specific test
 ```
 
-### Create Sprint
+---
+
+## 📦 Build & Deploy
+
+### Frontend
 ```bash
-curl -X POST "http://localhost:8080/api/sprints?trainerId=1" \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Q1 Training",
-    "startDate": "2026-04-01",
-    "endDate": "2026-06-30"
-  }'
+npm run build            # Production build
+npm run preview          # Preview build locally
+docker build -t sprintflow-frontend .
 ```
 
-### Mark Attendance
+### Backend
 ```bash
-curl -X POST "http://localhost:8080/api/tasks/attendance?userId=2&sprintId=1&status=PRESENT&date=2026-04-01" \
-  -H "Authorization: Bearer TOKEN"
+mvn clean package        # Build JAR
+mvn spring-boot:run      # Run locally
+docker build -t sprintflow-backend .
 ```
 
-### Get All Sprints
+---
+
+## 📖 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| README.md | Project overview |
+| DATABASE_SETUP_GUIDE.md | Database setup |
+| COMPLETE_CHANGES_SUMMARY.md | All changes made |
+| TROUBLESHOOTING_GUIDE.md | Common issues |
+| FINAL_SETUP_GUIDE.md | Complete setup |
+| README_FOR_TEAMMATES.md | Quick start |
+
+---
+
+## 🔄 Git Workflow
+
+### Pull Latest
 ```bash
-curl -X GET http://localhost:8080/api/sprints \
-  -H "Authorization: Bearer TOKEN"
+git checkout main
+git pull origin main
+```
+
+### Create Feature Branch
+```bash
+git checkout -b feature/your-feature
+# Make changes
+git add .
+git commit -m "feat: description"
+git push origin feature/your-feature
+# Create PR on GitHub
+```
+
+### Merge to Main
+```bash
+git checkout main
+git pull origin main
+git merge feature/your-feature
+git push origin main
 ```
 
 ---
 
-## 💾 Database
+## 📞 Support
 
-### Tables
-- **users** - User accounts
-- **sprints** - Training programs
-- **tasks** - Attendance records
-
-### Connection
-- Host: `localhost`
-- Port: `3306`
-- User: `root`
-- Password: `root`
-- Database: `sprintflow_db` (auto-created)
+1. Check documentation files
+2. Review git commit history
+3. Check browser console (F12)
+4. Check backend logs
+5. Run verification queries
 
 ---
 
-## ✅ Success Checklist
+## ✅ Verification Checklist
 
-- [ ] Backend starts (mvn spring-boot:run)
-- [ ] Frontend starts (npm run dev)
-- [ ] http://localhost:8080/api/health returns UP
-- [ ] Can register new user
-- [ ] Can login and get token
-- [ ] Can create sprint
-- [ ] Can mark attendance
-- [ ] Token persists on page reload
-
----
-
-## 📈 What's Implemented
-
-✅ **Authentication**
-- Login/Register with JWT
-- Token validation
-- Role-based access
-
-✅ **Users**
-- CRUD operations
-- Filter by role
-- Activation/deactivation
-
-✅ **Sprints**
-- Full lifecycle management
-- Trainer assignment
-- Status tracking
-
-✅ **Attendance**
-- Daily marking
-- History tracking
-- User attendance view
-
-✅ **Security**
-- BCrypt passwords
-- JWT tokens
-- RBAC system
+- [ ] Frontend running on http://localhost:5173
+- [ ] Backend running on http://localhost:8080
+- [ ] Database has 73 employees
+- [ ] Can login with credentials
+- [ ] Trainer dashboard shows charts
+- [ ] Attendance page loads data
+- [ ] No console errors
+- [ ] No database errors
 
 ---
 
-## 🚀 Next Steps
-
-1. **Read:** GETTING_STARTED.md
-2. **Start:** `mvn spring-boot:run`
-3. **Test:** API endpoints with cURL
-4. **Integrate:** Update frontend with code from INTEGRATION_GUIDE.md
-5. **Deploy:** When ready for production
-
----
-
-## 📞 Need Help?
-
-1. Check GETTING_STARTED.md
-2. Review API_DOCUMENTATION.md
-3. Look at code examples in INTEGRATION_GUIDE.md
-4. Read full architecture in API_PLAN.md
-
----
-
-## 🎉 You're All Set!
-
-Your backend is ready. Start it up and integrate with frontend.
-
-**Questions?** Check the documentation files.
-
----
-
-**Backend Status:** ✅ Ready
-**API Endpoints:** 38/38 Done
-**Documentation:** Complete
-**Security:** Implemented
-**Database:** Configured
-
-**GO BUILD AMAZING THINGS! 🚀**
+**Last Updated:** 2026-05-05
+**Version:** 1.0
+**Status:** ✅ Production Ready
