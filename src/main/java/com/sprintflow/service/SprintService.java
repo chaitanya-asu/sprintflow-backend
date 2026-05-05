@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class SprintService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SprintService.class);
 
     @Autowired private SprintRepository sprintRepository;
     @Autowired private UserRepository userRepository;
@@ -46,30 +50,47 @@ public class SprintService {
 
     @Transactional
     public SprintDTO createSprint(SprintDTO dto, Long createdBy) {
+        if (dto == null) {
+            throw new IllegalArgumentException("Sprint DTO cannot be null");
+        }
+
         Sprint sprint = new Sprint();
         mapDtoToEntity(dto, sprint);
         
-        User creator = userRepository.findById(createdBy).orElse(null);
+        User creator = null;
+        if (createdBy != null) {
+            creator = userRepository.findById(createdBy).orElse(null);
+            if (creator == null) {
+                logger.warn("Creator user not found: {}", createdBy);
+            }
+        }
         sprint.setCreatedBy(creator);
         sprint.setCreatedAt(LocalDateTime.now());
         sprint.setUpdatedAt(LocalDateTime.now());
 
         Sprint saved = sprintRepository.save(sprint);
+        logger.info("Sprint created successfully: {} (ID: {})", saved.getTitle(), saved.getId());
         
-        // Auto-enroll employees based on cohorts
-        employeeService.autoEnrollByCohorts(saved.getId());
+        try {
+            employeeService.autoEnrollByCohorts(saved.getId());
+        } catch (Exception e) {
+            logger.error("Error auto-enrolling employees for sprint: {}", saved.getId(), e);
+        }
 
-        // Notify trainer
         if (saved.getTrainer() != null) {
-            com.sprintflow.entity.Notification notification = com.sprintflow.entity.Notification.builder()
-                .userEmail(saved.getTrainer().getEmail())
-                .title("New Sprint Assigned")
-                .message("You have been assigned as a trainer for: " + saved.getTitle())
-                .type("INFO")
-                .read(false)
-                .createdAt(LocalDateTime.now())
-                .build();
-            notificationService.create(notification);
+            try {
+                com.sprintflow.entity.Notification notification = com.sprintflow.entity.Notification.builder()
+                    .userEmail(saved.getTrainer().getEmail())
+                    .title("New Sprint Assigned")
+                    .message("You have been assigned as a trainer for: " + saved.getTitle())
+                    .type("INFO")
+                    .read(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+                notificationService.create(notification);
+            } catch (Exception e) {
+                logger.error("Error creating notification for trainer: {}", saved.getTrainer().getEmail(), e);
+            }
         }
 
         return toDTO(saved);
@@ -134,6 +155,10 @@ public class SprintService {
     // ── Helpers ──────────────────────────────────────────────
 
     private void mapDtoToEntity(SprintDTO dto, Sprint sprint) {
+        if (dto == null) {
+            throw new IllegalArgumentException("Sprint DTO cannot be null");
+        }
+
         sprint.setTitle(dto.getTitle());
         sprint.setTechnology(dto.getTechnology());
         sprint.setCohort(dto.getCohort());
@@ -145,18 +170,27 @@ public class SprintService {
         sprint.setStatus(dto.getStatus());
         sprint.setInstructions(dto.getInstructions());
 
-        if (dto.getTrainer() != null) {
-            userRepository.findByName(dto.getTrainer()).ifPresent(sprint::setTrainer);
+        if (dto.getTrainer() != null && !dto.getTrainer().isBlank()) {
+            userRepository.findByName(dto.getTrainer()).ifPresentOrElse(
+                sprint::setTrainer,
+                () -> logger.warn("Trainer not found: {}", dto.getTrainer())
+            );
         }
 
-        if (dto.getCohorts() != null) {
+        if (dto.getCohorts() != null && !dto.getCohorts().isEmpty()) {
             try {
                 sprint.setCohortsJson(objectMapper.writeValueAsString(dto.getCohorts()));
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                logger.error("Error serializing cohorts JSON", e);
+            }
         }
     }
 
     private SprintDTO toDTO(Sprint sprint) {
+        if (sprint == null) {
+            return null;
+        }
+
         SprintDTO dto = new SprintDTO();
         dto.setId(sprint.getId());
         dto.setTitle(sprint.getTitle());
@@ -174,13 +208,15 @@ public class SprintService {
             dto.setTrainer(sprint.getTrainer().getName());
         }
         
-        if (sprint.getCohortsJson() != null) {
+        if (sprint.getCohortsJson() != null && !sprint.getCohortsJson().isBlank()) {
             try {
                 List<SprintDTO.CohortPair> pairs = objectMapper.readValue(
                         sprint.getCohortsJson(),
                         new com.fasterxml.jackson.core.type.TypeReference<List<SprintDTO.CohortPair>>() {});
                 dto.setCohorts(pairs);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                logger.error("Error deserializing cohorts JSON for sprint: {}", sprint.getId(), e);
+            }
         }
         
         return dto;

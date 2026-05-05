@@ -14,6 +14,8 @@ public class CohortDTO {
     private Long id;
     private String name;
     private String patternType;
+    private String technology;
+    private String cohortNumber;
     private String status;
     private LocalDateTime createdAt;
 }

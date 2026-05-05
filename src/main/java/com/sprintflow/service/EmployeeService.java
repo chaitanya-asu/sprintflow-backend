@@ -34,6 +34,9 @@ public class EmployeeService {
     }
 
     public List<EmployeeDTO> getByTechnologyAndCohort(String technology, String cohort) {
+        if (technology == null || technology.isBlank() || cohort == null || cohort.isBlank()) {
+            throw new IllegalArgumentException("Technology and cohort cannot be null or empty");
+        }
         return employeeRepository.findByTechnologyAndCohort(technology, cohort)
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
@@ -105,45 +108,52 @@ public class EmployeeService {
         sprintEmployeeRepository.deleteBySprintIdAndEmployeeId(sprintId, employeeId);
     }
 
-    // Auto-enroll all employees matching sprint's cohort pairs
     @Transactional
     public void autoEnrollByCohorts(Long sprintId) {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + sprintId));
 
-        if (sprint.getCohortsJson() != null) {
+        if (sprint.getCohortsJson() != null && !sprint.getCohortsJson().isBlank()) {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
                 List<com.sprintflow.dto.SprintDTO.CohortPair> pairs = om.readValue(
                         sprint.getCohortsJson(),
                         new com.fasterxml.jackson.core.type.TypeReference<List<com.sprintflow.dto.SprintDTO.CohortPair>>() {});
+                
                 for (com.sprintflow.dto.SprintDTO.CohortPair pair : pairs) {
-                    List<Employee> matched = employeeRepository.findActiveByTechnologyAndCohort(
-                            pair.getTechnology(), pair.getCohort());
-                    for (Employee emp : matched) {
-                        if (!sprintEmployeeRepository.existsBySprintIdAndEmployeeId(sprintId, emp.getId())) {
-                            sprintEmployeeRepository.save(new SprintEmployee(sprint, emp));
+                    if (pair.getTechnology() != null && pair.getCohort() != null) {
+                        List<Employee> matched = employeeRepository.findActiveByTechnologyAndCohort(
+                                pair.getTechnology(), pair.getCohort());
+                        for (Employee emp : matched) {
+                            if (!sprintEmployeeRepository.existsBySprintIdAndEmployeeId(sprintId, emp.getId())) {
+                                sprintEmployeeRepository.save(new SprintEmployee(sprint, emp));
+                            }
                         }
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                throw new RuntimeException("Error auto-enrolling employees: " + e.getMessage(), e);
+            }
         }
     }
 
     // ── Helpers ──────────────────────────────────────────────
 
     private void mapDtoToEntity(EmployeeDTO dto, Employee emp) {
-        if (dto.getEmpId()      != null) emp.setEmpId(dto.getEmpId());
-        if (dto.getName()       != null) emp.setName(dto.getName());
-        if (dto.getEmail()      != null) emp.setEmail(dto.getEmail());
-        if (dto.getPhone()      != null) emp.setPhone(dto.getPhone());
-        if (dto.getTechnology() != null) emp.setTechnology(dto.getTechnology());
-        if (dto.getCohort()     != null) emp.setCohort(dto.getCohort());
-        if (dto.getDepartment() != null) emp.setDepartment(dto.getDepartment());
-        if (dto.getStatus()     != null) emp.setStatus(dto.getStatus());
+        if (dto.getEmpId()      != null && !dto.getEmpId().isBlank())      emp.setEmpId(dto.getEmpId());
+        if (dto.getName()       != null && !dto.getName().isBlank())       emp.setName(dto.getName());
+        if (dto.getEmail()      != null && !dto.getEmail().isBlank())      emp.setEmail(dto.getEmail());
+        if (dto.getPhone()      != null && !dto.getPhone().isBlank())      emp.setPhone(dto.getPhone());
+        if (dto.getTechnology() != null && !dto.getTechnology().isBlank()) emp.setTechnology(dto.getTechnology());
+        if (dto.getCohort()     != null && !dto.getCohort().isBlank())     emp.setCohort(dto.getCohort());
+        if (dto.getDepartment() != null && !dto.getDepartment().isBlank()) emp.setDepartment(dto.getDepartment());
+        if (dto.getStatus()     != null && !dto.getStatus().isBlank())     emp.setStatus(dto.getStatus());
     }
 
-    EmployeeDTO toDTO(Employee emp) {
+    public EmployeeDTO toDTO(Employee emp) {
+        if (emp == null) {
+            return null;
+        }
         EmployeeDTO dto = new EmployeeDTO();
         dto.setId(emp.getId());
         dto.setEmpId(emp.getEmpId());

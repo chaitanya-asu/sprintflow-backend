@@ -19,10 +19,16 @@ public class Cohort {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String name; // e.g., PY-DEV-2024-Q1
+    private String name; // e.g., "Java C1" (auto-generated from technology + cohort_number)
 
     @Column(name = "pattern_type")
-    private String patternType; // Python-DevOps, Java-FullStack, etc.
+    private String patternType; // Java, Python, Devops, DotNet, SalesForce
+
+    @Column(name = "technology", length = 20)
+    private String technology; // Java, Python, Devops, DotNet, SalesForce
+
+    @Column(name = "cohort_number", length = 10)
+    private String cohortNumber; // C1, C2, C3, etc.
 
     private String status; // Active, Completed, Planned
 
@@ -32,5 +38,25 @@ public class Cohort {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        // Auto-generate name from technology and cohort_number if not provided
+        if ((name == null || name.isBlank()) && technology != null && cohortNumber != null) {
+            this.name = technology + " " + cohortNumber;
+        }
+        // Ensure patternType matches technology
+        if (patternType == null && technology != null) {
+            this.patternType = technology;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        // Keep name in sync with technology and cohort_number
+        if (technology != null && cohortNumber != null) {
+            this.name = technology + " " + cohortNumber;
+        }
+        // Ensure patternType matches technology
+        if (technology != null) {
+            this.patternType = technology;
+        }
     }
 }
