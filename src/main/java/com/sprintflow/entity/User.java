@@ -35,6 +35,18 @@ public class User {
     @Column(name = "trainer_role", length = 50)
     private String trainerRole; // e.g. Manager-Trainings, Director-Trainings
 
+    @Column(name = "trainer_type", length = 20)
+    private String trainerType; // TECHNOLOGY, COMMUNICATION
+
+    @Column(name = "trainer_technology", length = 50)
+    private String trainerTechnology; // Java, Python, Devops, DotNet, SalesForce
+
+    @Column(name = "trainer_subject", length = 100)
+    private String trainerSubject; // Spring Boot, Django, Docker, etc.
+
+    @Column(name = "trainer_communication_type", length = 100)
+    private String trainerCommunicationType; // Soft Skills, Leadership, Presentation, etc.
+
     @Column(name = "status", nullable = false, length = 10)
     private String status = "Active"; // Active, Inactive
 
@@ -95,6 +107,18 @@ public class User {
 
     public String getTrainerRole() { return trainerRole; }
     public void setTrainerRole(String trainerRole) { this.trainerRole = trainerRole; }
+
+    public String getTrainerType() { return trainerType; }
+    public void setTrainerType(String trainerType) { this.trainerType = trainerType; }
+
+    public String getTrainerTechnology() { return trainerTechnology; }
+    public void setTrainerTechnology(String trainerTechnology) { this.trainerTechnology = trainerTechnology; }
+
+    public String getTrainerSubject() { return trainerSubject; }
+    public void setTrainerSubject(String trainerSubject) { this.trainerSubject = trainerSubject; }
+
+    public String getTrainerCommunicationType() { return trainerCommunicationType; }
+    public void setTrainerCommunicationType(String trainerCommunicationType) { this.trainerCommunicationType = trainerCommunicationType; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

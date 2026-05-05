@@ -3,6 +3,7 @@ package com.sprintflow.controller;
 import com.sprintflow.dto.SprintDTO;
 import com.sprintflow.dto.ApiResponseDTO;
 import com.sprintflow.dto.EmployeeDTO;
+import com.sprintflow.dto.RoomAvailabilityDTO;
 import com.sprintflow.repository.UserRepository;
 import com.sprintflow.service.SprintService;
 import com.sprintflow.service.EmployeeService;
@@ -53,11 +54,10 @@ public class SprintController {
             @Parameter(description = "Page size", example = "8")
             @RequestParam(required = false) Integer pageSize) {
 
-        List<SprintDTO> sprints = status != null
+        List<SprintDTO> sprints = status != null && !status.isBlank()
                 ? sprintService.getSprintsByStatus(status)
                 : sprintService.getAllSprints();
 
-        // Keyword filter
         if (q != null && !q.isBlank()) {
             String lq = q.trim().toLowerCase();
             sprints = sprints.stream()
@@ -66,26 +66,21 @@ public class SprintController {
                     .collect(Collectors.toList());
         }
 
-        // Pagination — only when page param is provided
         if (page != null && page > 0) {
             int size  = (pageSize != null && pageSize > 0) ? pageSize : 10;
             int total = sprints.size();
             int from  = (page - 1) * size;
             int to    = Math.min(from + size, total);
-            List<SprintDTO> items = from < total ? sprints.subList(from, to) : List.of();
+            List<SprintDTO> items = (from < total && to > from) ? sprints.subList(from, to) : List.of();
             Map<String, Object> paged = new HashMap<>();
             paged.put("items",    items);
             paged.put("total",    total);
             paged.put("page",     page);
             paged.put("pageSize", size);
-            return ResponseEntity.ok(ApiResponseDTO.<Object>builder()
-                    .success(true).message("Sprints retrieved successfully")
-                    .data(paged).statusCode(200).build());
+            return ok("Sprints retrieved successfully", paged);
         }
 
-        return ResponseEntity.ok(ApiResponseDTO.<Object>builder()
-                .success(true).message("Sprints retrieved successfully")
-                .data(sprints).statusCode(200).build());
+        return ok("Sprints retrieved successfully", sprints);
     }
 
     @Operation(summary = "Get sprint by ID")
@@ -137,7 +132,34 @@ public class SprintController {
     public ResponseEntity<ApiResponseDTO<SprintDTO>> createSprint(
             @RequestBody SprintDTO dto,
             Principal principal) {
-        // Resolve user ID from the JWT principal (email) — no manual Authorization header needed
+        if (dto == null) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Sprint data is required")
+                    .statusCode(400).build());
+        }
+
+        if (dto.getTitle() == null || dto.getTitle().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Sprint title is required")
+                    .statusCode(400).build());
+        }
+
+        if (dto.getStartDate() == null || dto.getEndDate() == null) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Start date and end date are required")
+                    .statusCode(400).build());
+        }
+
+        if (dto.getStartDate().isAfter(dto.getEndDate())) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Start date must be before end date")
+                    .statusCode(400).build());
+        }
+
         Long userId = resolveUserId(principal);
         SprintDTO created = sprintService.createSprint(dto, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -163,7 +185,29 @@ public class SprintController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponseDTO<SprintDTO>> updateStatus(
             @PathVariable Long id, @RequestBody Map<String, String> body) {
-        return ok("Status updated successfully", sprintService.updateStatus(id, body.get("status")));
+        if (id == null || id <= 0) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Invalid sprint ID")
+                    .statusCode(400).build());
+        }
+
+        if (body == null || body.get("status") == null || body.get("status").isBlank()) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Status is required")
+                    .statusCode(400).build());
+        }
+
+        String status = body.get("status").trim();
+        if (!isValidStatus(status)) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Invalid status. Allowed: Scheduled, On Hold, Completed")
+                    .statusCode(400).build());
+        }
+
+        return ok("Status updated successfully", sprintService.updateStatus(id, status));
     }
 
     @Operation(summary = "Delete sprint", description = "**HR role only.**")
@@ -228,9 +272,18 @@ public class SprintController {
         return ok(conflicts.isEmpty() ? "No conflicts" : "Trainer has conflicting sprints", conflicts);
     }
 
+    @Operation(summary = "Get room availability and bookings")
+    @GetMapping("/rooms/availability")
+    public ResponseEntity<ApiResponseDTO<List<RoomAvailabilityDTO>>> getRoomAvailability() {
+        return ok("Room availability retrieved", sprintService.getRoomAvailability());
+    }
+
     // ── Helpers ───────────────────────────────────────────────
 
-    /** Resolve DB user ID from the JWT principal (email). */
+    private boolean isValidStatus(String status) {
+        return status != null && (status.equals("Scheduled") || status.equals("On Hold") || status.equals("Completed"));
+    }
+
     private Long resolveUserId(Principal principal) {
         if (principal == null) return null;
         return userRepository.findByEmail(principal.getName())

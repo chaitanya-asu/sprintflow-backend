@@ -1,6 +1,7 @@
 package com.sprintflow.dto;
 
 import java.time.LocalDateTime;
+import com.sprintflow.validation.ValidCohort;
 
 public class EmployeeDTO {
 
@@ -10,7 +11,8 @@ public class EmployeeDTO {
     private String email;
     private String phone;
     private String technology;  // Java, Python, Devops, DotNet, SalesForce
-    private String cohort;      // Cohort A, Cohort B
+    @ValidCohort
+    private String cohort;      // Must follow pattern: C1, C2, C3, etc.
     private String department;
     private String status;      // Active, Inactive
     private LocalDateTime createdAt;

@@ -59,7 +59,23 @@ CREATE TABLE IF NOT EXISTS employees (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ── 3. SPRINTS ───────────────────────────────────────────────────
+-- ── 3. ROOMS ────────────────────────────────────────────────────
+-- Sprint rooms for scheduling.
+-- status: Active | Inactive | Maintenance
+CREATE TABLE IF NOT EXISTS rooms (
+  id           BIGINT       NOT NULL AUTO_INCREMENT,
+  name         VARCHAR(100) NOT NULL,
+  capacity     INT          NOT NULL,
+  status       VARCHAR(20)  NOT NULL DEFAULT 'Active',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_rooms_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 4. SPRINTS ───────────────────────────────────────────────────
 -- A sprint is a scheduled training session.
 -- cohorts_json stores multi-cohort JSON: [{"technology":"Java","cohort":"JC2"},...]
 -- status: Scheduled | On Hold | Completed
@@ -90,7 +106,7 @@ CREATE TABLE IF NOT EXISTS sprints (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ── 4. SPRINT_EMPLOYEES ──────────────────────────────────────────
+-- ── 5. SPRINT_EMPLOYEES ──────────────────────────────────────────
 -- Junction table: which employees are enrolled in which sprint.
 -- status: ENROLLED | DROPPED | COMPLETED
 CREATE TABLE IF NOT EXISTS sprint_employees (
@@ -109,7 +125,7 @@ CREATE TABLE IF NOT EXISTS sprint_employees (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ── 5. ATTENDANCE ────────────────────────────────────────────────
+-- ── 6. ATTENDANCE ────────────────────────────────────────────────
 -- One row per (sprint, employee, date).
 -- status   : Present | Late | Absent
 -- submitted: locked after trainer submits the day's attendance
@@ -137,7 +153,7 @@ CREATE TABLE IF NOT EXISTS attendance (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ── 6. CHAT_MESSAGES ─────────────────────────────────────────────
+-- ── 7. CHAT_MESSAGES ─────────────────────────────────────────────
 -- Real-time 1-to-1 messages via STOMP/WebSocket.
 -- delivered: true once pushed to recipient's STOMP queue
 -- read_at  : null = unread
@@ -159,7 +175,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ── 7. MESSAGES ──────────────────────────────────────────────────
+-- ── 8. MESSAGES ──────────────────────────────────────────────────
 -- Persistent message store (mirrors chat_messages; used by MessageController).
 CREATE TABLE IF NOT EXISTS messages (
   id               BIGINT       NOT NULL AUTO_INCREMENT,

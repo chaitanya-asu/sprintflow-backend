@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- SprintFlow — Updated Seed Script
+-- SprintFlow — Updated Seed Script (Standardized Cohorts)
 -- ═══════════════════════════════════════════════════════════════
 
 USE sprintflow_db;
@@ -28,85 +28,85 @@ ON DUPLICATE KEY UPDATE
 
 INSERT INTO sprints (title, technology, cohort, cohorts_json, trainer_id, created_by, room, start_date, end_date, sprint_start_time, sprint_end_time, status, instructions, created_at, updated_at)
 VALUES
-  -- Java Sprint JC2 + JC3
-  ('Java Sprint - JC2/JC3', 'Java', 'JC2',
-   '[{"technology":"Java","cohort":"JC2"},{"technology":"Java","cohort":"JC3"}]',
+  -- Java Sprint C1 + C2
+  ('Java Sprint - C1/C2', 'Java', 'C1',
+   '[{"technology":"Java","cohort":"C1"},{"technology":"Java","cohort":"C2"}]',
    (SELECT id FROM users WHERE email = 's.posanapally@ajacs.in'),
    (SELECT id FROM users WHERE email = 's.lakkampally@ajacs.in'),
    'Training Room 1',
    '2026-03-25', '2026-04-30',
    '12:00 PM', '01:00 PM',
    'Scheduled',
-   'Java training for JC2 and JC3 cohorts. Session: 12:00-13:00.',
+   'Java training for C1 and C2 cohorts. Session: 12:00-13:00.',
    NOW(), NOW()),
 
-  -- Python Sprint PC1
-  ('Python Sprint - PC1', 'Python', 'PC1',
-   '[{"technology":"Python","cohort":"PC1"}]',
+  -- Python Sprint C4
+  ('Python Sprint - C4', 'Python', 'C4',
+   '[{"technology":"Python","cohort":"C4"}]',
    (SELECT id FROM users WHERE email = 's.posanapally@ajacs.in'),
    (SELECT id FROM users WHERE email = 's.lakkampally@ajacs.in'),
    'Training Room 2',
    '2026-03-25', '2026-04-30',
    '02:00 PM', '03:00 PM',
    'Scheduled',
-   'Python training for PC1 cohort. Session: 14:00-15:00.',
+   'Python training for C4 cohort. Session: 14:00-15:00.',
    NOW(), NOW()),
 
-  -- Devops Sprint DC1
-  ('Devops Sprint - DC1', 'Devops', 'DC1',
-   '[{"technology":"Devops","cohort":"DC1"}]',
+  -- Devops Sprint C7
+  ('Devops Sprint - C7', 'Devops', 'C7',
+   '[{"technology":"Devops","cohort":"C7"}]',
    (SELECT id FROM users WHERE email = 's.posanapally@ajacs.in'),
    (SELECT id FROM users WHERE email = 's.lakkampally@ajacs.in'),
    'Training Room 3',
    '2026-03-25', '2026-04-30',
    '03:00 PM', '04:00 PM',
    'Scheduled',
-   'Devops training for DC1 cohort. Session: 15:00-16:00.',
+   'Devops training for C7 cohort. Session: 15:00-16:00.',
    NOW(), NOW())
 
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
--- ── 3. EMPLOYEES — Java JC2 ──────────────────────────────────────
+-- ── 3. EMPLOYEES — Java C1 ──────────────────────────────────────
 
 INSERT INTO employees (emp_id, name, email, technology, cohort, department, status, created_at, updated_at)
 VALUES
-  ('2431035', 'Peram Raghunadha Reddy',      '2431035@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531015', 'Asu Bhaskar Chaitanya',        '2531015@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531025', 'Gudi Anil Reddy',              '2531025@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531005', 'Kummari Pavan Kumar',          '2531005@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531018', 'Gummadi Rakesh',               '2531018@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2431031', 'Medeboina Srinivas',           '2431031@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2431041', 'Velugu Aparna',                '2431041@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2431042', 'Reddy Gaari Navaneeth Reddy',  '2431042@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531003', 'Kasarla Avinash Kumar',        '2531003@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531017', 'Pishke Saikiran',              '2531017@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531006', 'Konnoju Shireesha',            '2531006@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  ('2531010', 'Anil Choppari',                '2531010@ajacs.in', 'Java', 'JC2', 'Technology', 'Active', NOW(), NOW()),
-  -- Java JC3
-  ('2531019', 'Rohith Shunkishela',           '2531019@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531021', 'Bodapati Sai Krishna',         '2531021@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531022', 'Vaduru Dileep Sai',            '2531022@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531024', 'Kongari Nikhil',               '2531024@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531038', 'Nimmaturi Ashok Kumar',        '2531038@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531047', 'Nampally Radhika',             '2531047@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531050', 'Kammari Vamshi Krishna Chary', '2531050@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531014', 'Thontla Yedukondala Reddy',    '2531014@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531031', 'Namburi Suneetha',             '2531031@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531033', 'Annapureddy Sravani',          '2531033@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531036', 'Peddinti Ramya',               '2531036@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531051', 'Badi Vinitha',                 '2531051@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW()),
-  ('2531039', 'Bathina Ashok',                '2531039@ajacs.in', 'Java', 'JC3', 'Technology', 'Active', NOW(), NOW())
+  ('2431035', 'Peram Raghunadha Reddy',      '2431035@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531015', 'Asu Bhaskar Chaitanya',        '2531015@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531025', 'Gudi Anil Reddy',              '2531025@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531005', 'Kummari Pavan Kumar',          '2531005@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531018', 'Gummadi Rakesh',               '2531018@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2431031', 'Medeboina Srinivas',           '2431031@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2431041', 'Velugu Aparna',                '2431041@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2431042', 'Reddy Gaari Navaneeth Reddy',  '2431042@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531003', 'Kasarla Avinash Kumar',        '2531003@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531017', 'Pishke Saikiran',              '2531017@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531006', 'Konnoju Shireesha',            '2531006@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  ('2531010', 'Anil Choppari',                '2531010@ajacs.in', 'Java', 'C1', 'Technology', 'Active', NOW(), NOW()),
+  -- Java C2
+  ('2531019', 'Rohith Shunkishela',           '2531019@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531021', 'Bodapati Sai Krishna',         '2531021@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531022', 'Vaduru Dileep Sai',            '2531022@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531024', 'Kongari Nikhil',               '2531024@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531038', 'Nimmaturi Ashok Kumar',        '2531038@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531047', 'Nampally Radhika',             '2531047@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531050', 'Kammari Vamshi Krishna Chary', '2531050@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531014', 'Thontla Yedukondala Reddy',    '2531014@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531031', 'Namburi Suneetha',             '2531031@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531033', 'Annapureddy Sravani',          '2531033@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531036', 'Peddinti Ramya',               '2531036@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531051', 'Badi Vinitha',                 '2531051@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW()),
+  ('2531039', 'Bathina Ashok',                '2531039@ajacs.in', 'Java', 'C2', 'Technology', 'Active', NOW(), NOW())
 ON DUPLICATE KEY UPDATE name = VALUES(name), cohort = VALUES(cohort), email = VALUES(email), updated_at = NOW();
 
 -- ── 4. SPRINT_EMPLOYEES ──────────────────────────────────────────
 
--- Java JC2 + JC3
+-- Java C1 + C2
 INSERT INTO sprint_employees (sprint_id, employee_id, status, enrolled_at)
 SELECT
-  (SELECT id FROM sprints WHERE title = 'Java Sprint - JC2/JC3' LIMIT 1),
+  (SELECT id FROM sprints WHERE title = 'Java Sprint - C1/C2' LIMIT 1),
   e.id, 'ENROLLED', NOW()
 FROM employees e
-WHERE e.technology = 'Java' AND e.cohort IN ('JC2', 'JC3')
+WHERE e.technology = 'Java' AND e.cohort IN ('C1', 'C2')
 ON DUPLICATE KEY UPDATE status = 'ENROLLED';
 
 -- ── 5. VERIFY ────────────────────────────────────────────────────

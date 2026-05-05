@@ -48,6 +48,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health/**").permitAll()
                 .requestMatchers("/api/setup/**").permitAll()
+                // Static reference data (cohorts, rooms)
+                .requestMatchers("/api/cohorts/**").permitAll()
+                .requestMatchers("/api/rooms/**").permitAll()
                 // Swagger UI + OpenAPI spec
                 .requestMatchers(
                     "/swagger-ui.html",

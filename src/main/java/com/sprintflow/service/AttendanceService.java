@@ -4,220 +4,210 @@ import com.sprintflow.dto.AttendanceDTO;
 import com.sprintflow.entity.Attendance;
 import com.sprintflow.entity.Employee;
 import com.sprintflow.entity.Sprint;
-import com.sprintflow.entity.User;
 import com.sprintflow.exception.ResourceNotFoundException;
 import com.sprintflow.repository.AttendanceRepository;
 import com.sprintflow.repository.EmployeeRepository;
 import com.sprintflow.repository.SprintRepository;
-import com.sprintflow.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class AttendanceService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);
+    private static final String ATTENDANCE_STATUS_PRESENT = "Present";
+    private static final String ATTENDANCE_STATUS_LATE = "Late";
+    private static final String ATTENDANCE_STATUS_ABSENT = "Absent";
+
     @Autowired private AttendanceRepository attendanceRepository;
     @Autowired private SprintRepository     sprintRepository;
     @Autowired private EmployeeRepository   employeeRepository;
-    @Autowired private UserRepository       userRepository;
-    @Autowired private EmailService         emailService;
 
-    // ── Submit attendance for a date ─────────────────────────
     @Transactional
-    public void submitAttendance(AttendanceDTO.SubmitRequest request, Long markedByUserId) {
-        if (markedByUserId == null)
-            throw new com.sprintflow.exception.AuthenticationException("Authenticated user required to submit attendance");
+    public void submitAttendance(AttendanceDTO.SubmitRequest request, Long userId) {
+        if (request == null || request.getSprintId() == null) {
+            throw new IllegalArgumentException("Invalid attendance request");
+        }
 
         Sprint sprint = sprintRepository.findById(request.getSprintId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + request.getSprintId()));
-        User markedBy = userRepository.findById(markedByUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + markedByUserId));
 
-        // Build time slot string from sprint fields
-        String timeSlot = buildTimeSlot(sprint);
+        if (request.getRecords() == null || request.getRecords().isEmpty()) {
+            logger.warn("No attendance records provided for sprint: {}", request.getSprintId());
+            return;
+        }
 
-        for (AttendanceDTO.SubmitRequest.AttendanceRecord rec : request.getRecords()) {
-            Employee emp = employeeRepository.findById(rec.getEmployeeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + rec.getEmployeeId()));
+        for (AttendanceDTO.SubmitRequest.AttendanceRecord record : request.getRecords()) {
+            Employee employee = employeeRepository.findById(record.getEmployeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + record.getEmployeeId()));
 
-            Attendance att = attendanceRepository
-                    .findBySprintIdAndEmployeeIdAndAttendanceDate(
-                            sprint.getId(), emp.getId(), request.getAttendanceDate())
+            Attendance attendance = attendanceRepository
+                    .findBySprintIdAndEmployeeIdAndAttendanceDate(sprint.getId(), employee.getId(), request.getAttendanceDate())
                     .orElse(new Attendance());
 
-            att.setSprint(sprint);
-            att.setEmployee(emp);
-            att.setAttendanceDate(request.getAttendanceDate());
-            att.setStatus(rec.getStatus());
-            att.setCheckInTime(rec.getCheckInTime());
-            att.setNotes(rec.getNotes());
-            att.setSubmitted(true);
-            att.setMarkedBy(markedBy);
-            if (att.getId() == null) att.setCreatedAt(LocalDateTime.now());
-            att.setUpdatedAt(LocalDateTime.now());
-            // createdAt is only set on new records (id == null); never overwritten on update
+            attendance.setSprint(sprint);
+            attendance.setEmployee(employee);
+            attendance.setAttendanceDate(request.getAttendanceDate());
+            attendance.setStatus(record.getStatus());
+            attendance.setCheckInTime(record.getCheckInTime());
+            attendance.setNotes(record.getNotes());
+            attendance.setSubmitted(true);
 
-            attendanceRepository.save(att);
-
-            // Send absence email if trainer enabled the toggle and employee has an email
-            if (request.isSendAbsenceEmails()
-                    && "Absent".equalsIgnoreCase(rec.getStatus())
-                    && emp.getEmail() != null
-                    && !emp.getEmail().isBlank()) {
-                sendAbsenceEmailAsync(
-                        emp.getEmail(),
-                        emp.getName(),
-                        sprint.getTitle(),
-                        request.getAttendanceDate().toString(),
-                        timeSlot,
-                        rec.getNotes()
-                );
-            }
+            attendanceRepository.save(attendance);
         }
     }
 
-    // Fire-and-forget so the HTTP response is not delayed by email sending
-    @Async
-    public void sendAbsenceEmailAsync(String email, String name, String sprintTitle,
-                                      String date, String timeSlot, String note) {
-        try {
-            emailService.sendAbsenceNotification(email, name, sprintTitle, date, timeSlot, note);
-        } catch (Exception ex) {
-            System.err.printf("[AttendanceService] Failed to send absence email to %s: %s%n",
-                    email, ex.getMessage());
-        }
-    }
-
-    // ── Get attendance by sprint + date ──────────────────────
     public List<AttendanceDTO> getByDate(Long sprintId, LocalDate date) {
         return attendanceRepository.findBySprintIdAndAttendanceDate(sprintId, date)
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    // ── Get ALL attendance records for a sprint (all dates) ──
     public List<AttendanceDTO> getAllBySprint(Long sprintId) {
         return attendanceRepository.findBySprintId(sprintId)
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    // ── Per-employee stats for a sprint ──────────────────────
     public List<AttendanceDTO.StatsDTO> getStats(Long sprintId) {
-        List<Object[]> raw = attendanceRepository.getStatsBySprintId(sprintId);
-        List<AttendanceDTO.StatsDTO> stats = new ArrayList<>();
-        for (Object[] row : raw) {
-            Long empId = (Long) row[0];
-            Employee emp = employeeRepository.findById(empId).orElse(null);
-            if (emp == null) continue;
-
-            AttendanceDTO.StatsDTO stat = new AttendanceDTO.StatsDTO();
-            stat.setEmployeeId(empId);
-            stat.setEmpId(emp.getEmpId());
-            stat.setEmployeeName(emp.getName());
-            stat.setCohort(emp.getCohort());
-            stat.setTechnology(emp.getTechnology());
-            stat.setTotalDays((Long) row[1]);
-            stat.setPresentDays((Long) row[2]);
-            stat.setLateDays((Long) row[3]);
-            stat.setAbsentDays((Long) row[4]);
-            stat.setPresentPercentage(stat.getTotalDays() > 0
-                    ? Math.round((stat.getPresentDays() * 100.0 / stat.getTotalDays()) * 100) / 100.0
-                    : 0);
-            stats.add(stat);
+        if (sprintId == null) {
+            throw new IllegalArgumentException("Sprint ID cannot be null");
         }
-        return stats;
+
+        List<Attendance> list = attendanceRepository.findBySprintId(sprintId);
+        Map<Employee, List<Attendance>> grouped = list.stream().collect(Collectors.groupingBy(Attendance::getEmployee));
+
+        return grouped.entrySet().stream().map(entry -> {
+            Employee e = entry.getKey();
+            List<Attendance> atts = entry.getValue();
+            AttendanceDTO.StatsDTO stats = new AttendanceDTO.StatsDTO();
+            stats.setEmployeeId(e.getId());
+            stats.setEmpId(e.getEmpId());
+            stats.setEmployeeName(e.getName());
+            stats.setCohort(e.getCohort());
+            stats.setTechnology(e.getTechnology());
+            
+            long total = atts.size();
+            long present = atts.stream().filter(a -> ATTENDANCE_STATUS_PRESENT.equalsIgnoreCase(a.getStatus())).count();
+            long late = atts.stream().filter(a -> ATTENDANCE_STATUS_LATE.equalsIgnoreCase(a.getStatus())).count();
+            long absent = atts.stream().filter(a -> ATTENDANCE_STATUS_ABSENT.equalsIgnoreCase(a.getStatus())).count();
+            
+            stats.setTotalDays(total);
+            stats.setPresentDays(present);
+            stats.setLateDays(late);
+            stats.setAbsentDays(absent);
+            stats.setPresentPercentage(calculatePercentage(present + late, total));
+            return stats;
+        }).collect(Collectors.toList());
     }
 
-    // ── Cohort-level stats for a sprint ──────────────────────
     public List<AttendanceDTO.CohortStatsDTO> getCohortStats(Long sprintId) {
-        List<Object[]> raw = attendanceRepository.getCohortStatsBySprintId(sprintId);
-        List<AttendanceDTO.CohortStatsDTO> stats = new ArrayList<>();
-        for (Object[] row : raw) {
-            AttendanceDTO.CohortStatsDTO stat = new AttendanceDTO.CohortStatsDTO();
-            stat.setCohort((String) row[0]);
-            stat.setTechnology((String) row[1]);
-            stat.setTotalDays((Long) row[2]);
-            stat.setPresentDays((Long) row[3]);
-            stat.setLateDays((Long) row[4]);
-            stat.setAbsentDays((Long) row[5]);
-            stat.setPresentPercentage(stat.getTotalDays() > 0
-                    ? Math.round((stat.getPresentDays() * 100.0 / stat.getTotalDays()) * 100) / 100.0
-                    : 0);
-            stats.add(stat);
+        if (sprintId == null) {
+            throw new IllegalArgumentException("Sprint ID cannot be null");
         }
-        return stats;
+
+        List<Attendance> list = attendanceRepository.findBySprintId(sprintId);
+        return list.stream()
+                .collect(Collectors.groupingBy(a -> buildCohortKey(a.getEmployee())))
+                .entrySet().stream().map(entry -> {
+                    String[] parts = entry.getKey().split("\\|");
+                    List<Attendance> atts = entry.getValue();
+                    AttendanceDTO.CohortStatsDTO stats = new AttendanceDTO.CohortStatsDTO();
+                    stats.setCohort(parts[0]);
+                    stats.setTechnology(parts.length > 1 ? parts[1] : "—");
+                    
+                    long total = atts.size();
+                    long present = atts.stream().filter(a -> ATTENDANCE_STATUS_PRESENT.equalsIgnoreCase(a.getStatus())).count();
+                    long late = atts.stream().filter(a -> ATTENDANCE_STATUS_LATE.equalsIgnoreCase(a.getStatus())).count();
+                    long absent = atts.stream().filter(a -> ATTENDANCE_STATUS_ABSENT.equalsIgnoreCase(a.getStatus())).count();
+
+                    stats.setTotalDays(total);
+                    stats.setPresentDays(present);
+                    stats.setLateDays(late);
+                    stats.setAbsentDays(absent);
+                    stats.setPresentPercentage(calculatePercentage(present + late, total));
+                    return stats;
+                }).collect(Collectors.toList());
     }
 
-    // ── Global cohort stats across all sprints ────────────────
     public List<AttendanceDTO.CohortStatsDTO> getGlobalCohortStats() {
-        List<Object[]> raw = attendanceRepository.getGlobalCohortStats();
-        List<AttendanceDTO.CohortStatsDTO> stats = new ArrayList<>();
-        for (Object[] row : raw) {
-            AttendanceDTO.CohortStatsDTO stat = new AttendanceDTO.CohortStatsDTO();
-            stat.setCohort((String) row[0]);
-            stat.setTechnology((String) row[1]);
-            stat.setTotalDays((Long) row[2]);
-            stat.setPresentDays((Long) row[3]);
-            stat.setLateDays((Long) row[4]);
-            stat.setAbsentDays((Long) row[5]);
-            stat.setPresentPercentage(stat.getTotalDays() > 0
-                    ? Math.round((stat.getPresentDays() * 100.0 / stat.getTotalDays()) * 100) / 100.0
-                    : 0);
-            stats.add(stat);
-        }
-        return stats;
+        List<Attendance> all = attendanceRepository.findAll();
+        return all.stream()
+                .collect(Collectors.groupingBy(a -> buildCohortKey(a.getEmployee())))
+                .entrySet().stream().map(entry -> {
+                    String[] parts = entry.getKey().split("\\|");
+                    List<Attendance> atts = entry.getValue();
+                    AttendanceDTO.CohortStatsDTO stats = new AttendanceDTO.CohortStatsDTO();
+                    stats.setCohort(parts[0]);
+                    stats.setTechnology(parts.length > 1 ? parts[1] : "—");
+                    long total = atts.size();
+                    long present = atts.stream().filter(a -> ATTENDANCE_STATUS_PRESENT.equalsIgnoreCase(a.getStatus())).count();
+                    long late = atts.stream().filter(a -> ATTENDANCE_STATUS_LATE.equalsIgnoreCase(a.getStatus())).count();
+                    long absent = atts.stream().filter(a -> ATTENDANCE_STATUS_ABSENT.equalsIgnoreCase(a.getStatus())).count();
+                    stats.setTotalDays(total);
+                    stats.setPresentDays(present);
+                    stats.setLateDays(late);
+                    stats.setAbsentDays(absent);
+                    stats.setPresentPercentage(calculatePercentage(present + late, total));
+                    return stats;
+                }).collect(Collectors.toList());
     }
 
-    // ── Overall summary across all sprints (ManagerDashboard) ─
     public AttendanceDTO.SummaryDTO getSummary() {
-        long total   = attendanceRepository.count();
-        long present = attendanceRepository.countByStatus("Present");
-        long late    = attendanceRepository.countByStatus("Late");
-        long absent  = attendanceRepository.countByStatus("Absent");
-
+        List<Attendance> all = attendanceRepository.findAll();
         AttendanceDTO.SummaryDTO summary = new AttendanceDTO.SummaryDTO();
+        long total = all.size();
+        long present = all.stream().filter(a -> ATTENDANCE_STATUS_PRESENT.equalsIgnoreCase(a.getStatus())).count();
+        long late = all.stream().filter(a -> ATTENDANCE_STATUS_LATE.equalsIgnoreCase(a.getStatus())).count();
+        long absent = all.stream().filter(a -> ATTENDANCE_STATUS_ABSENT.equalsIgnoreCase(a.getStatus())).count();
+        
         summary.setTotalRecords(total);
         summary.setPresentCount(present);
         summary.setLateCount(late);
         summary.setAbsentCount(absent);
-        summary.setOverallPresentPercentage(total > 0
-                ? Math.round((present * 100.0 / total) * 100) / 100.0
-                : 0);
+        summary.setOverallPresentPercentage(calculatePercentage(present + late, total));
         return summary;
     }
 
-    // ── Helpers ───────────────────────────────────────────────
-    private String buildTimeSlot(Sprint sprint) {
-        if (sprint.getSprintStart() != null && sprint.getSprintEnd() != null) {
-            return sprint.getSprintStart() + " – " + sprint.getSprintEnd();
+    private AttendanceDTO toDTO(Attendance a) {
+        if (a == null || a.getSprint() == null || a.getEmployee() == null) {
+            logger.warn("Null attendance or related entities encountered");
+            return null;
         }
-        return "See sprint schedule";
+
+        AttendanceDTO dto = new AttendanceDTO();
+        dto.setId(a.getId());
+        dto.setSprintId(a.getSprint().getId());
+        dto.setSprintTitle(a.getSprint().getTitle());
+        dto.setEmployeeId(a.getEmployee().getId());
+        dto.setEmpId(a.getEmployee().getEmpId());
+        dto.setEmployeeName(a.getEmployee().getName());
+        dto.setTechnology(a.getEmployee().getTechnology());
+        dto.setCohort(a.getEmployee().getCohort());
+        dto.setAttendanceDate(a.getAttendanceDate());
+        dto.setStatus(a.getStatus());
+        dto.setCheckInTime(a.getCheckInTime());
+        dto.setNotes(a.getNotes());
+        dto.setSubmitted(a.isSubmitted());
+        dto.setCreatedAt(a.getCreatedAt());
+        dto.setUpdatedAt(a.getUpdatedAt());
+        return dto;
     }
 
-    AttendanceDTO toDTO(Attendance att) {
-        AttendanceDTO dto = new AttendanceDTO();
-        dto.setId(att.getId());
-        dto.setSprintId(att.getSprint().getId());
-        dto.setSprintTitle(att.getSprint().getTitle());
-        dto.setEmployeeId(att.getEmployee().getId());
-        dto.setEmpId(att.getEmployee().getEmpId());
-        dto.setEmployeeName(att.getEmployee().getName());
-        dto.setTechnology(att.getEmployee().getTechnology());
-        dto.setCohort(att.getEmployee().getCohort());
-        dto.setAttendanceDate(att.getAttendanceDate());
-        dto.setStatus(att.getStatus());
-        dto.setCheckInTime(att.getCheckInTime());
-        dto.setNotes(att.getNotes());
-        dto.setSubmitted(att.isSubmitted());
-        dto.setCreatedAt(att.getCreatedAt());
-        dto.setUpdatedAt(att.getUpdatedAt());
-        return dto;
+    private String buildCohortKey(Employee employee) {
+        String cohort = employee.getCohort() != null ? employee.getCohort() : "Unknown";
+        String technology = employee.getTechnology() != null ? employee.getTechnology() : "Unknown";
+        return cohort + "|" + technology;
+    }
+
+    private double calculatePercentage(long numerator, long denominator) {
+        return denominator == 0 ? 0.0 : (double) numerator / denominator * 100;
     }
 }

@@ -1,8 +1,10 @@
 package com.sprintflow.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.sprintflow.validation.ValidCohort;
 
 @Entity
 @Table(name = "employees")
@@ -28,7 +30,8 @@ public class Employee {
     private String technology; // Java, Python, Devops, DotNet, SalesForce
 
     @Column(nullable = false, length = 50)
-    private String cohort; // Cohort A, Cohort B, Cohort C
+    @ValidCohort
+    private String cohort; // Must follow pattern: C1, C2, C3, etc.
 
     @Column(length = 100)
     private String department;

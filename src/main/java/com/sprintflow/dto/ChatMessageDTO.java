@@ -13,6 +13,9 @@ public class ChatMessageDTO {
         public void setRecipientEmail(String v) { this.recipientEmail = v; }
         public String getContent() { return content; }
         public void setContent(String v) { this.content = v; }
+        private Long recipientGroupId;
+        public Long getRecipientGroupId() { return recipientGroupId; }
+        public void setRecipientGroupId(Long v) { this.recipientGroupId = v; }
     }
 
     // ── Outbound: server → /user/{email}/queue/messages ──────
@@ -26,13 +29,14 @@ public class ChatMessageDTO {
         private java.time.LocalDateTime sentAt;
         private boolean       delivered;
         private java.time.LocalDateTime readAt; // null = unread
+        private Long          recipientGroupId;
 
         public Payload() {}
 
         public Payload(Long id, String senderEmail, String senderName, String senderRole,
                        String recipientEmail, String content,
                        java.time.LocalDateTime sentAt, boolean delivered,
-                       java.time.LocalDateTime readAt) {
+                       java.time.LocalDateTime readAt, Long recipientGroupId) {
             this.id             = id;
             this.senderEmail    = senderEmail;
             this.senderName     = senderName;
@@ -42,6 +46,7 @@ public class ChatMessageDTO {
             this.sentAt         = sentAt;
             this.delivered      = delivered;
             this.readAt         = readAt;
+            this.recipientGroupId = recipientGroupId;
         }
 
         public Long getId()                          { return id; }
@@ -53,6 +58,8 @@ public class ChatMessageDTO {
         public java.time.LocalDateTime getSentAt()   { return sentAt; }
         public boolean isDelivered()                 { return delivered; }
         public java.time.LocalDateTime getReadAt()   { return readAt; }
+        public Long getRecipientGroupId()            { return recipientGroupId; }
+        public void setRecipientGroupId(Long v)      { this.recipientGroupId = v; }
     }
 
     // ── Read receipt: client → /app/chat.read ────────────────────────

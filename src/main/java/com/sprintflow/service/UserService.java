@@ -43,6 +43,16 @@ public class UserService {
         return userRepository.findByRoleAll(role).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    // Filter trainers by type (TECHNOLOGY/COMMUNICATION) and optionally by technology
+    public List<UserDTO> filterTrainersByTypeAndTechnology(String type, String technology) {
+        List<User> trainers = userRepository.findByRole(Role.TRAINER);
+        return trainers.stream()
+            .filter(t -> type == null || (t.getTrainerType() != null && t.getTrainerType().equalsIgnoreCase(type)))
+            .filter(t -> technology == null || (t.getTrainerTechnology() != null && t.getTrainerTechnology().equalsIgnoreCase(technology)))
+            .map(this::toDTO)
+            .collect(Collectors.toList());
+    }
+
     // Manager creates trainer or HR.
     // If a soft-deleted user with the same email exists, reactivate them instead of blocking.
     public UserDTO createUser(UserDTO dto) {
@@ -172,6 +182,10 @@ public class UserService {
         dto.setPhone(user.getPhone());
         dto.setDepartment(user.getDepartment());
         dto.setTrainerRole(user.getTrainerRole());
+        dto.setTrainerType(user.getTrainerType());
+        dto.setTrainerTechnology(user.getTrainerTechnology());
+        dto.setTrainerSubject(user.getTrainerSubject());
+        dto.setTrainerCommunicationType(user.getTrainerCommunicationType());
         dto.setStatus(user.getStatus());
         dto.setJoinedDate(user.getJoinedDate());
         dto.setCreatedAt(user.getCreatedAt());
