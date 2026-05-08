@@ -38,11 +38,9 @@ public class Cohort {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        // Auto-generate name from technology and cohort_number if not provided
         if ((name == null || name.isBlank()) && technology != null && cohortNumber != null) {
-            this.name = technology + " " + cohortNumber;
+            this.name = cohortNumber;
         }
-        // Ensure patternType matches technology
         if (patternType == null && technology != null) {
             this.patternType = technology;
         }
@@ -50,11 +48,9 @@ public class Cohort {
 
     @PreUpdate
     protected void onUpdate() {
-        // Keep name in sync with technology and cohort_number
-        if (technology != null && cohortNumber != null) {
-            this.name = technology + " " + cohortNumber;
+        if (cohortNumber != null) {
+            this.name = cohortNumber;
         }
-        // Ensure patternType matches technology
         if (technology != null) {
             this.patternType = technology;
         }

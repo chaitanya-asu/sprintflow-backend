@@ -20,9 +20,20 @@ public class SprintEmployee {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    // ENROLLED, DROPPED, COMPLETED
+    // ENROLLED, DROPPED, COMPLETED, BLOCKED
     @Column(nullable = false, length = 15)
     private String status = "ENROLLED";
+
+    // When blocked by manager, trainer cannot mark attendance for this employee
+    @Column(name = "blocked", nullable = false)
+    private boolean blocked = false;
+
+    @Column(name = "blocked_reason", length = 255)
+    private String blockedReason;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "blocked_by")
+    private User blockedBy;
 
     @Column(name = "enrolled_at", nullable = false, updatable = false)
     private LocalDateTime enrolledAt = LocalDateTime.now();
@@ -49,4 +60,13 @@ public class SprintEmployee {
 
     public LocalDateTime getEnrolledAt() { return enrolledAt; }
     public void setEnrolledAt(LocalDateTime enrolledAt) { this.enrolledAt = enrolledAt; }
+
+    public boolean isBlocked() { return blocked; }
+    public void setBlocked(boolean blocked) { this.blocked = blocked; }
+
+    public String getBlockedReason() { return blockedReason; }
+    public void setBlockedReason(String blockedReason) { this.blockedReason = blockedReason; }
+
+    public User getBlockedBy() { return blockedBy; }
+    public void setBlockedBy(User blockedBy) { this.blockedBy = blockedBy; }
 }

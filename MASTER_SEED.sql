@@ -28,18 +28,59 @@ VALUES
 TRUNCATE TABLE rooms;
 
 INSERT INTO rooms (name, capacity, status, created_at, updated_at) VALUES
-  ('Room A - Sandeepa',      30, 'Active', NOW(), NOW()),
-  ('Room B - Dhrona',        25, 'Active', NOW(), NOW()),
+  ('Room A - Sandeepa',      25, 'Active', NOW(), NOW()),
+  ('Room B - Dhrona',        15, 'Active', NOW(), NOW()),
   ('Room C - Brahma',        20, 'Active', NOW(), NOW()),
-  ('Room D - Maheshwara',    35, 'Active', NOW(), NOW()),
-  ('Training Room 1',        30, 'Active', NOW(), NOW()),
-  ('Training Room 2',        25, 'Active', NOW(), NOW()),
-  ('Training Room 3',        20, 'Active', NOW(), NOW()),
-  ('Training Room 4',        30, 'Active', NOW(), NOW()),
-  ('Training Room 5',        25, 'Active', NOW(), NOW());
+  ('Room D - Maheshwara',    15, 'Active', NOW(), NOW());
+
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- SECTION 3: EMPLOYEES (73 total across 5 technologies)
+-- SECTION 3: COHORTS (6 total)
+-- ══════════════════════════════════════════════════════════════════════════════
+
+TRUNCATE TABLE cohorts;
+
+INSERT INTO cohorts (name, pattern_type, technology, cohort_number, status, created_at, updated_at) VALUES
+  ('C1', 'Java', 'Java', '1', 'Active', NOW(), NOW()),
+  ('C2', 'Java', 'Java', '2', 'Active', NOW(), NOW()),
+  ('C3', 'Python', 'Python', '3', 'Active', NOW(), NOW()),
+  ('C4', 'Devops', 'Devops', '4', 'Active', NOW(), NOW()),
+  ('C5', 'DotNet', 'DotNet', '5', 'Active', NOW(), NOW()),
+  ('C6', 'SalesForce', 'SalesForce', '6', 'Active', NOW(), NOW());
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- SECTION 3a: MASTER_DATA (Technologies, Subjects, Communication Types)
+-- ══════════════════════════════════════════════════════════════════════════════
+
+TRUNCATE TABLE master_data;
+
+INSERT INTO master_data (category, value, display_order, status, created_at, updated_at) VALUES
+-- Technologies
+('TECHNOLOGY', 'Java', 1, 'Active', NOW(), NOW()),
+('TECHNOLOGY', 'Python', 2, 'Active', NOW(), NOW()),
+('TECHNOLOGY', 'Devops', 3, 'Active', NOW(), NOW()),
+('TECHNOLOGY', 'DotNet', 4, 'Active', NOW(), NOW()),
+('TECHNOLOGY', 'SalesForce', 5, 'Active', NOW(), NOW()),
+
+-- Subjects (for technology sprints)
+('SUBJECT', 'Spring Boot', 1, 'Active', NOW(), NOW()),
+('SUBJECT', 'Django', 2, 'Active', NOW(), NOW()),
+('SUBJECT', 'Docker', 3, 'Active', NOW(), NOW()),
+('SUBJECT', 'Kubernetes', 4, 'Active', NOW(), NOW()),
+('SUBJECT', 'C# Web API', 5, 'Active', NOW(), NOW()),
+('SUBJECT', 'Apex', 6, 'Active', NOW(), NOW()),
+('SUBJECT', 'React', 7, 'Active', NOW(), NOW()),
+('SUBJECT', 'Angular', 8, 'Active', NOW(), NOW()),
+
+-- Communication Types
+('COMM_TYPE', 'Soft Skills', 1, 'Active', NOW(), NOW()),
+('COMM_TYPE', 'Leadership', 2, 'Active', NOW(), NOW()),
+('COMM_TYPE', 'Presentation', 3, 'Active', NOW(), NOW()),
+('COMM_TYPE', 'Team Building', 4, 'Active', NOW(), NOW()),
+('COMM_TYPE', 'Conflict Resolution', 5, 'Active', NOW(), NOW());
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- SECTION 4: EMPLOYEES (73 total across 5 technologies)
 -- Cohort naming: C1, C2, C3, C4, C5 (standardized)
 -- ══════════════════════════════════════════════════════════════════════════════
 
@@ -121,7 +162,7 @@ INSERT INTO employees (emp_id, name, email, technology, cohort, department, stat
   ('SC1006', 'Sita Ramesh',         'sc1006@ajacs.in', 'SalesForce', 'C6', 'Technology', 'Active', NOW(), NOW());
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- SECTION 4: SPRINTS (5 total - one per technology)
+-- SECTION 5: SPRINTS (5 total - one per technology)
 -- ══════════════════════════════════════════════════════════════════════════════
 
 TRUNCATE TABLE sprints;
@@ -184,7 +225,7 @@ VALUES
    NOW(), NOW());
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- SECTION 5: SPRINT_EMPLOYEES (Auto-enroll all employees)
+-- SECTION 6: SPRINT_EMPLOYEES (Auto-enroll all employees)
 -- ══════════════════════════════════════════════════════════════════════════════
 
 TRUNCATE TABLE sprint_employees;
@@ -215,7 +256,7 @@ SELECT (SELECT id FROM sprints WHERE title = 'Salesforce Sprint - C6' LIMIT 1), 
 FROM employees e WHERE e.technology = 'SalesForce' AND e.cohort = 'C6';
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- SECTION 6: ATTENDANCE (Sample data for all sprints)
+-- SECTION 7: ATTENDANCE (Sample data for all sprints)
 -- ══════════════════════════════════════════════════════════════════════════════
 
 TRUNCATE TABLE attendance;
@@ -248,17 +289,45 @@ SELECT (SELECT id FROM sprints WHERE title = 'Salesforce Sprint - C6' LIMIT 1), 
 FROM employees e WHERE e.technology = 'SalesForce' AND e.cohort = 'C6';
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- SECTION 7: VERIFICATION & SUMMARY
+-- SECTION 8: CHAT GROUPS & CLEANUP
+-- ══════════════════════════════════════════════════════════════════════════════
+
+TRUNCATE TABLE notifications;
+TRUNCATE TABLE tasks;
+TRUNCATE TABLE audit_logs;
+TRUNCATE TABLE chat_messages;
+TRUNCATE TABLE messages;
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE chat_groups;
+TRUNCATE TABLE chat_group_members;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- Create a sample group
+INSERT INTO chat_groups (name, created_by, created_at)
+VALUES ('General Announcements', 'surya@sprintflow.com', NOW());
+
+SET @group_id = LAST_INSERT_ID();
+
+-- Add all users to the group
+INSERT INTO chat_group_members (group_id, user_id)
+SELECT @group_id, id FROM users;
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- SECTION 9: VERIFICATION & SUMMARY
 -- ══════════════════════════════════════════════════════════════════════════════
 
 SELECT '✓ DATA LOAD COMPLETE' AS status;
 SELECT '=== SUMMARY ===' AS info;
 SELECT 'Users' AS entity, COUNT(*) AS count FROM users UNION ALL
 SELECT 'Rooms', COUNT(*) FROM rooms UNION ALL
+SELECT 'Cohorts', COUNT(*) FROM cohorts UNION ALL
 SELECT 'Employees', COUNT(*) FROM employees UNION ALL
 SELECT 'Sprints', COUNT(*) FROM sprints UNION ALL
 SELECT 'Sprint_Employees', COUNT(*) FROM sprint_employees UNION ALL
-SELECT 'Attendance', COUNT(*) FROM attendance;
+SELECT 'Attendance', COUNT(*) FROM attendance UNION ALL
+SELECT 'Notifications', COUNT(*) FROM notifications UNION ALL
+SELECT 'Tasks', COUNT(*) FROM tasks UNION ALL
+SELECT 'Audit_Logs', COUNT(*) FROM audit_logs;
 
 SELECT '=== EMPLOYEES BY TECHNOLOGY ===' AS info;
 SELECT technology, cohort, COUNT(*) as count FROM employees GROUP BY technology, cohort ORDER BY technology, cohort;

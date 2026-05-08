@@ -1,10 +1,14 @@
 package com.sprintflow.config;
 
-import com.sprintflow.security.JwtAuthenticationFilter;
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -16,11 +20,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import org.springframework.beans.factory.annotation.Value;
-import java.util.Arrays;
-import java.util.List;
-
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import com.sprintflow.security.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -63,28 +63,40 @@ public class SecurityConfig {
                 // WebSocket handshake (SockJS)
                 .requestMatchers("/ws/**").permitAll()
 
-                // Sprints — all roles read; HR + MANAGER create/delete; HR + MANAGER + TRAINER update
+                // Sprints â€” all roles read; HR + MANAGER create/delete; HR + MANAGER + TRAINER update
                 .requestMatchers(HttpMethod.GET,    "/api/sprints/**").hasAnyRole("MANAGER", "HR", "TRAINER")
                 .requestMatchers(HttpMethod.POST,   "/api/sprints").hasAnyRole("HR", "MANAGER")
                 .requestMatchers(HttpMethod.DELETE, "/api/sprints/**").hasAnyRole("HR", "MANAGER")
                 .requestMatchers(HttpMethod.PUT,    "/api/sprints/**").hasAnyRole("HR", "TRAINER", "MANAGER")
                 .requestMatchers(HttpMethod.PATCH,  "/api/sprints/**").hasAnyRole("HR", "TRAINER", "MANAGER")
 
-                // Attendance — trainer submits; manager + HR + trainer read
+                // Attendance â€” trainer submits; manager + HR + trainer read
                 .requestMatchers(HttpMethod.POST,  "/api/attendance/**").hasAnyRole("TRAINER", "MANAGER")
                 .requestMatchers(HttpMethod.PATCH, "/api/attendance/**").hasAnyRole("TRAINER", "MANAGER")
                 .requestMatchers(HttpMethod.GET,   "/api/attendance/**").hasAnyRole("MANAGER", "HR", "TRAINER")
 
-                // Employees — manager + HR manage (including delete), trainer reads
+                // Employees â€” manager + HR manage (including delete), trainer reads
                 .requestMatchers(HttpMethod.GET,    "/api/employees/**").hasAnyRole("MANAGER", "HR", "TRAINER")
                 .requestMatchers(HttpMethod.POST,   "/api/employees/**").hasAnyRole("MANAGER", "HR")
                 .requestMatchers(HttpMethod.PUT,    "/api/employees/**").hasAnyRole("MANAGER", "HR")
                 .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasAnyRole("MANAGER", "HR")
 
-                // Messages — all authenticated roles
+                // Tasks — all roles read/write; MANAGER + HR delete
+                .requestMatchers(HttpMethod.GET,    "/api/tasks/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+                .requestMatchers(HttpMethod.POST,   "/api/tasks/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+                .requestMatchers(HttpMethod.PUT,    "/api/tasks/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+                .requestMatchers(HttpMethod.PATCH,  "/api/tasks/**").hasAnyRole("MANAGER", "HR", "TRAINER")
+                .requestMatchers(HttpMethod.DELETE, "/api/tasks/**").hasAnyRole("MANAGER", "HR")
+
+                // Notifications — all authenticated roles
+                .requestMatchers("/api/notifications/**").authenticated()
+
+                // Audit logs — manager only (controller also uses @PreAuthorize)
+                .requestMatchers("/api/audit-logs/**").hasRole("MANAGER")
+                // Messages â€” all authenticated roles
                 .requestMatchers("/api/messages/**").authenticated()
 
-                // Users — manager manages all; HR can read trainers for sprint creation dropdown
+                // Users â€” manager manages all; HR can read trainers for sprint creation dropdown
                 .requestMatchers(HttpMethod.GET,    "/api/users/**").hasAnyRole("MANAGER", "HR")
                 .requestMatchers(HttpMethod.POST,   "/api/users/**").hasRole("MANAGER")
                 .requestMatchers(HttpMethod.PUT,    "/api/users/**").hasRole("MANAGER")
@@ -116,3 +128,6 @@ public class SecurityConfig {
         return source;
     }
 }
+
+
+

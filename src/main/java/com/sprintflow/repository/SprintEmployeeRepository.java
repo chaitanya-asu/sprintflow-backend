@@ -2,6 +2,9 @@ package com.sprintflow.repository;
 
 import com.sprintflow.entity.SprintEmployee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,4 +22,12 @@ public interface SprintEmployeeRepository extends JpaRepository<SprintEmployee, 
     boolean existsBySprintIdAndEmployeeId(Long sprintId, Long employeeId);
 
     void deleteBySprintIdAndEmployeeId(Long sprintId, Long employeeId);
+
+    List<SprintEmployee> findBySprintIdAndBlockedTrue(Long sprintId);
+
+    @Modifying
+    @Query("UPDATE SprintEmployee se SET se.blocked = :blocked, se.blockedReason = :reason WHERE se.sprint.id = :sprintId AND se.employee.id = :employeeId")
+    int updateBlockedStatus(@Param("sprintId") Long sprintId, @Param("employeeId") Long employeeId, @Param("blocked") boolean blocked, @Param("reason") String reason);
+
+    long countBySprintId(Long sprintId);
 }

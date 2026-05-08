@@ -1,21 +1,32 @@
 package com.sprintflow.controller;
 
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sprintflow.dto.ApiResponseDTO;
 import com.sprintflow.dto.EmployeeDTO;
 import com.sprintflow.service.EmployeeService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/employees")
@@ -146,6 +157,20 @@ public class EmployeeController {
             @Parameter(description = "Sprint ID", example = "1") @PathVariable Long sprintId) {
         employeeService.autoEnrollByCohorts(sprintId);
         return ok("Employees auto-enrolled by cohort pairs", null);
+    }
+
+    @Operation(summary = "Block employee from all sprints", description = "**MANAGER only.** Removes from active sprints and prevents future enrollment.")
+    @PatchMapping("/{id}/block")
+    public ResponseEntity<ApiResponseDTO<EmployeeDTO>> block(
+            @PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        Boolean blocked = body.get("blocked");
+        if (blocked == null) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<EmployeeDTO>builder()
+                    .success(false).message("blocked field is required").statusCode(400).build());
+        }
+        return ok(blocked ? "Employee blocked successfully" : "Employee unblocked successfully",
+                  employeeService.toggleBlock(id, blocked));
     }
 
     private <T> ResponseEntity<ApiResponseDTO<T>> ok(String message, T data) {

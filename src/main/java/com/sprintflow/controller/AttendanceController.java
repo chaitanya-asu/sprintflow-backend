@@ -21,6 +21,9 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.sprintflow.entity.Sprint;
+import com.sprintflow.repository.SprintRepository;
+
 @RestController
 @RequestMapping("/api/attendance")
 @Tag(name = "Attendance", description = "Submit and query attendance records. Trainer submits; all roles read.")
@@ -28,6 +31,7 @@ public class AttendanceController {
 
     @Autowired private AttendanceService attendanceService;
     @Autowired private UserRepository    userRepository;
+    @Autowired private SprintRepository  sprintRepository;
 
     @Operation(
         summary     = "Submit attendance",
@@ -122,6 +126,17 @@ public class AttendanceController {
     @GetMapping("/summary")
     public ResponseEntity<ApiResponseDTO<AttendanceDTO.SummaryDTO>> getSummary() {
         return ok("Attendance summary retrieved", attendanceService.getSummary());
+    }
+
+    @Operation(
+        summary     = "Latest attendance snapshot per sprint",
+        description = "Returns the most recent submitted attendance counts per sprint. " +
+                      "Used by Manager Dashboard Sprint Performance cards."
+    )
+    @GetMapping("/latest")
+    public ResponseEntity<ApiResponseDTO<List<AttendanceDTO.LatestSnapshotDTO>>> getLatest() {
+        List<Sprint> sprints = sprintRepository.findAll();
+        return ok("Latest attendance snapshots retrieved", attendanceService.getLatestAttendancePerSprint(sprints));
     }
 
     // ── Helpers ───────────────────────────────────────────────

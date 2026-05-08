@@ -15,6 +15,7 @@ public class EmployeeDTO {
     private String cohort;      // Must follow pattern: C1, C2, C3, etc.
     private String department;
     private String status;      // Active, Inactive
+    private boolean blocked;    // Blocked from all sprints
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -47,6 +48,9 @@ public class EmployeeDTO {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public boolean isBlocked() { return blocked; }
+    public void setBlocked(boolean blocked) { this.blocked = blocked; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

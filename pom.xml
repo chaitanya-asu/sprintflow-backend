@@ -111,13 +111,27 @@
 			<optional>true</optional>
 		</dependency>
 
-		<!-- DevTools -->
+		<!-- Rate Limiting (Bucket4j) -->
 		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j-core</artifactId>
+			<version>8.10.1</version>
+		</dependency>
+
+		<!-- OWASP HTML Sanitizer -->
+		<dependency>
+			<groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+			<artifactId>owasp-java-html-sanitizer</artifactId>
+			<version>20220608.1</version>
+		</dependency>
+
+		<!-- DevTools - TEMPORARILY DISABLED DUE TO CACHING ISSUES -->
+		<!-- <dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
 			<scope>runtime</scope>
 			<optional>true</optional>
-		</dependency>
+		</dependency> -->
 
 
 		<dependency>

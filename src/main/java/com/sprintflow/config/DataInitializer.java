@@ -4,6 +4,8 @@ import com.sprintflow.entity.User;
 import com.sprintflow.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
+@Profile({"dev", "development", "default"})
 public class DataInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
@@ -23,9 +26,17 @@ public class DataInitializer {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
+
     @PostConstruct
     @Transactional
     public void resetPasswords() {
+        if (!"dev".equalsIgnoreCase(activeProfile) && !"development".equalsIgnoreCase(activeProfile) && !"default".equalsIgnoreCase(activeProfile)) {
+            logger.warn("DataInitializer skipped in profile: {}", activeProfile);
+            return;
+        }
+
         if (initialized) {
             logger.debug("DataInitializer already executed, skipping");
             return;

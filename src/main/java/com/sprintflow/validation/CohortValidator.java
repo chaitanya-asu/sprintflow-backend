@@ -5,7 +5,7 @@ import jakarta.validation.ConstraintValidatorContext;
 
 public class CohortValidator implements ConstraintValidator<ValidCohort, String> {
 
-    private static final String VALID_COHORT_PATTERN = "^(?i)(.*\\s)?C\\d+$";
+    private static final String VALID_COHORT_PATTERN = "^(?i)(.*?\\s*)?C\\d+$";
 
     @Override
     public void initialize(ValidCohort constraintAnnotation) {

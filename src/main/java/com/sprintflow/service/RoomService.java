@@ -6,11 +6,13 @@ import com.sprintflow.exception.DuplicateResourceException;
 import com.sprintflow.exception.ResourceNotFoundException;
 import com.sprintflow.repository.RoomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,6 +21,9 @@ public class RoomService {
 
     @Autowired
     private RoomRepository roomRepository;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     /**
      * Get all rooms
@@ -73,7 +78,15 @@ public class RoomService {
         room.setUpdatedAt(LocalDateTime.now());
 
         Room savedRoom = roomRepository.save(room);
-        return convertToDTO(savedRoom);
+        RoomDTO savedDto = convertToDTO(savedRoom);
+        
+        // Broadcast event
+        messagingTemplate.convertAndSend("/topic/rooms", Map.of(
+                "type", "ROOM_CREATED",
+                "payload", savedDto
+        ));
+        
+        return savedDto;
     }
 
     /**
@@ -107,7 +120,15 @@ public class RoomService {
         room.setUpdatedAt(LocalDateTime.now());
 
         Room updatedRoom = roomRepository.save(room);
-        return convertToDTO(updatedRoom);
+        RoomDTO updatedDto = convertToDTO(updatedRoom);
+        
+        // Broadcast event
+        messagingTemplate.convertAndSend("/topic/rooms", Map.of(
+                "type", "ROOM_UPDATED",
+                "payload", updatedDto
+        ));
+        
+        return updatedDto;
     }
 
     /**
@@ -117,6 +138,12 @@ public class RoomService {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found with id: " + id));
         roomRepository.delete(room);
+        
+        // Broadcast event
+        messagingTemplate.convertAndSend("/topic/rooms", Map.of(
+                "type", "ROOM_DELETED",
+                "payload", id
+        ));
     }
 
     /**

@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,6 +17,9 @@ import java.util.Map;
 @RequestMapping("/api/health")
 @Tag(name = "Health", description = "Application health check endpoints. No authentication required.")
 public class HealthController {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Operation(summary = "Application health", description = "Returns service status and timestamp.")
     @ApiResponse(responseCode = "200", description = "Service is UP")
@@ -34,9 +39,17 @@ public class HealthController {
     @Operation(summary = "Database health", description = "Verifies the database connection is active.")
     @GetMapping("/db")
     public ResponseEntity<ApiResponseDTO<String>> checkDatabase() {
-        return ResponseEntity.ok(
-            ApiResponseDTO.<String>builder()
-                    .success(true).message("Database connection is healthy")
-                    .data("Connected").statusCode(200).build());
+        try {
+            entityManager.createNativeQuery("SELECT 1").getSingleResult();
+            return ResponseEntity.ok(
+                ApiResponseDTO.<String>builder()
+                        .success(true).message("Database connection is healthy")
+                        .data("Connected").statusCode(200).build());
+        } catch (Exception e) {
+            return ResponseEntity.status(503).body(
+                ApiResponseDTO.<String>builder()
+                        .success(false).message("Database connection failed")
+                        .data("Disconnected").statusCode(503).build());
+        }
     }
 }

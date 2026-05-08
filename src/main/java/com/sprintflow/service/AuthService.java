@@ -1,7 +1,24 @@
 package com.sprintflow.service;
 
-import com.sprintflow.dto.LoginDTO;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import com.sprintflow.dto.AuthResponseDTO;
+import com.sprintflow.dto.LoginDTO;
 import com.sprintflow.dto.MailConfigDTO;
 import com.sprintflow.entity.Role;
 import com.sprintflow.entity.User;
@@ -9,19 +26,6 @@ import com.sprintflow.exception.AuthenticationException;
 import com.sprintflow.exception.ResourceNotFoundException;
 import com.sprintflow.repository.UserRepository;
 import com.sprintflow.security.JwtTokenProvider;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -43,14 +47,40 @@ public class AuthService {
         return new SecretKeySpec(key, "AES");
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int GCM_TAG_LENGTH = 128;
+    private static final int GCM_IV_LENGTH = 12;
+
     private String encrypt(String plain) {
         try {
-            Cipher c = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            c.init(Cipher.ENCRYPT_MODE, aesKey());
-            return Base64.getEncoder().encodeToString(
-                    c.doFinal(plain.getBytes(StandardCharsets.UTF_8)));
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            SECURE_RANDOM.nextBytes(iv);
+            Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+            GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            c.init(Cipher.ENCRYPT_MODE, aesKey(), spec);
+            byte[] ciphertext = c.doFinal(plain.getBytes(StandardCharsets.UTF_8));
+            byte[] combined = new byte[iv.length + ciphertext.length];
+            System.arraycopy(iv, 0, combined, 0, iv.length);
+            System.arraycopy(ciphertext, 0, combined, iv.length, ciphertext.length);
+            return Base64.getEncoder().encodeToString(combined);
         } catch (Exception e) {
             throw new RuntimeException("Encryption failed", e);
+        }
+    }
+
+    private String decrypt(String encrypted) {
+        try {
+            byte[] combined = Base64.getDecoder().decode(encrypted);
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            byte[] ciphertext = new byte[combined.length - GCM_IV_LENGTH];
+            System.arraycopy(combined, 0, iv, 0, GCM_IV_LENGTH);
+            System.arraycopy(combined, GCM_IV_LENGTH, ciphertext, 0, ciphertext.length);
+            Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+            GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            c.init(Cipher.DECRYPT_MODE, aesKey(), spec);
+            return new String(c.doFinal(ciphertext), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RuntimeException("Decryption failed", e);
         }
     }
 
@@ -146,8 +176,8 @@ public class AuthService {
     }
 
     public void changePassword(String email, String oldPassword, String newPassword) {
-        if (oldPassword == null || newPassword == null || newPassword.length() < 6)
-            throw new AuthenticationException("Invalid password");
+        if (oldPassword == null || newPassword == null || newPassword.length() < 8)
+            throw new AuthenticationException("Password must be at least 8 characters");
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (!passwordEncoder.matches(oldPassword, user.getPassword()))
@@ -161,29 +191,26 @@ public class AuthService {
     // ── Forgot / Reset Password ───────────────────────────────
 
     public void forgotPassword(String email) {
-        User user = userRepository.findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() -> new ResourceNotFoundException("No account found with that email address"));
+        User user = userRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
 
-        if (!"Active".equalsIgnoreCase(user.getStatus()))
-            throw new AuthenticationException("Account is inactive. Contact your administrator.");
+        if (user != null && "Active".equalsIgnoreCase(user.getStatus())) {
+            String token = UUID.randomUUID().toString().replace("-", "");
+            user.setResetToken(token);
+            user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
 
-        // Generate a secure random token valid for 15 minutes
-        String token = UUID.randomUUID().toString().replace("-", "");
-        user.setResetToken(token);
-        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        if (emailService != null) {
-            emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), token);
+            if (emailService != null) {
+                emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), token);
+            }
         }
     }
 
     public void resetPassword(String token, String newPassword) {
         if (token == null || token.isBlank())
             throw new AuthenticationException("Invalid reset token");
-        if (newPassword == null || newPassword.length() < 6)
-            throw new AuthenticationException("Password must be at least 6 characters");
+        if (newPassword == null || newPassword.length() < 8)
+            throw new AuthenticationException("Password must be at least 8 characters");
 
         User user = userRepository.findByResetToken(token)
                 .orElseThrow(() -> new AuthenticationException("Invalid or expired reset link"));

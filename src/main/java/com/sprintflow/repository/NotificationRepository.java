@@ -9,8 +9,9 @@ import java.util.List;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     List<Notification> findByUserEmailOrderByCreatedAtDesc(String userEmail);
-    List<Notification> findByUserEmailAndReadFalse(String userEmail);
-    long countByUserEmailAndReadFalse(String userEmail);
+    List<Notification> findByUserEmailAndIsReadFalse(String userEmail);
+    long countByUserEmailAndIsReadFalse(String userEmail);
+    long countByUserEmail(String userEmail);
     
     @Transactional
     void deleteByUserEmail(String userEmail);

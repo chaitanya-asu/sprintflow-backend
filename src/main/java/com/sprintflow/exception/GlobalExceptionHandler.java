@@ -74,11 +74,53 @@ public class GlobalExceptionHandler {
                 .success(false)
                 .message("An internal server error occurred")
                 .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error(ex.getMessage())
+                .error("Internal Server Error")
                 .timestamp(LocalDateTime.now())
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
         
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponseDTO<?>> handleValidationException(
+            org.springframework.web.bind.MethodArgumentNotValidException ex, WebRequest request) {
+        
+        String errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("Validation failed");
+        
+        ApiResponseDTO<?> response = ApiResponseDTO.builder()
+                .success(false)
+                .message(errors)
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Error")
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+        
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<ApiResponseDTO<?>> handleConstraintViolation(
+            jakarta.validation.ConstraintViolationException ex, WebRequest request) {
+        
+        String errors = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("Constraint violation");
+        
+        ApiResponseDTO<?> response = ApiResponseDTO.builder()
+                .success(false)
+                .message(errors)
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Error")
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+        
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 }

@@ -1,26 +1,37 @@
 package com.sprintflow.controller;
 
-import com.sprintflow.dto.LoginDTO;
-import com.sprintflow.dto.AuthResponseDTO;
+import java.security.Principal;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sprintflow.dto.ApiResponseDTO;
+import com.sprintflow.dto.AuthResponseDTO;
+import com.sprintflow.dto.LoginDTO;
 import com.sprintflow.dto.MailConfigDTO;
 import com.sprintflow.dto.UserDTO;
 import com.sprintflow.service.AuthService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
-import java.util.Map;
-import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"}, allowCredentials = "true")
 @Tag(name = "Authentication")
 public class AuthController {
+
+    @Value("${app.cors.allowed-origins:*}")
+    private String[] allowedOrigins;
 
     @Autowired private AuthService authService;
 

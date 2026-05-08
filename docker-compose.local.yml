@@ -1,17 +1,18 @@
 # SprintFlow — Local Development Docker Compose
+#
+# Assumes the frontend repo is at ../sprintflow-frontend relative to this file.
+# If your repos are in different locations, set FRONTEND_PATH in .env.
+#
 # Usage:
 #   docker compose -f docker-compose.local.yml up -d --build
 #
 # Services:
-#   mysql    — MySQL 8, port 3306 (exposed for local debugging)
+#   mysql    — MySQL 8, port 3306 (exposed for local debugging tools)
 #   backend  — Spring Boot 3.2 / Java 21, port 8080
 #   frontend — Nginx serving React build, port 80
 
-version: '3.8'
-
 services:
 
-  # ── MySQL 8 ─────────────────────────────────────────────────
   mysql:
     image: mysql:8.0
     container_name: sprintflow-mysql-local
@@ -25,7 +26,8 @@ services:
 
     volumes:
       - mysql_data_local:/var/lib/mysql
-      - ./docker/init:/docker-entrypoint-initdb.d:ro
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./MASTER_SEED.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
 
     ports:
       - "3307:3306"
@@ -45,7 +47,6 @@ services:
         limits:
           memory: 768M
 
-  # ── Spring Boot Backend ──────────────────────────────────────
   backend:
     build:
       context: .
@@ -58,28 +59,26 @@ services:
         condition: service_healthy
 
     environment:
-      # Database
       DB_URL: jdbc:mysql://mysql:3306/sprintflow_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       DB_USERNAME: sprintflow
       DB_PASSWORD: sprintflow123
+      # Use 'update' for local dev so Flyway migrations also run
       DDL_AUTO: ${DDL_AUTO:-update}
 
-      # Security
       APP_JWT_SECRET: ${APP_JWT_SECRET}
       APP_MAIL_KEY: ${APP_MAIL_KEY}
 
-      # CORS — allow localhost frontend
-      APP_CORS_ORIGINS: http://localhost,http://localhost:80,http://localhost:5173
-      APP_FRONTEND_URL: http://localhost
+      # CORS — allow all localhost variants
+      APP_CORS_ORIGINS: http://localhost,http://localhost:80,http://localhost:5173,http://localhost:5174
+      APP_FRONTEND_URL: http://localhost:5173
 
-      # Swagger — enabled for local dev
-      SWAGGER_ENABLED: true
+      SWAGGER_ENABLED: "true"
+      RATE_LIMIT_ENABLED: "false"
 
-      # JVM tuning
       JAVA_OPTS: "-Xms256m -Xmx768m"
 
     ports:
-      - "8081:8080"
+      - "8080:8080"
 
     networks:
       - sprintflow-net-local
@@ -89,14 +88,14 @@ services:
         limits:
           memory: 1024M
 
-  # ── Nginx Frontend ───────────────────────────────────────────
   frontend:
     build:
+      # Relative path — assumes frontend repo is a sibling directory
       context: ${FRONTEND_PATH:-../sprintflow-frontend}
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost/api}
-        VITE_WS_URL: ${VITE_WS_URL:-http://localhost}
+        VITE_API_BASE_URL: /api
+        VITE_WS_URL: ""
         VITE_USE_MOCK: "false"
 
     container_name: sprintflow-frontend-local
@@ -106,10 +105,7 @@ services:
       - backend
 
     ports:
-      - "8000:80"
-
-    volumes:
-      - ./docker/ssl:/etc/nginx/ssl:ro
+      - "80:80"
 
     networks:
       - sprintflow-net-local
@@ -117,14 +113,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
 
-# ── Named volumes ────────────────────────────────────────────
 volumes:
   mysql_data_local:
     driver: local
 
-# ── Internal network ─────────────────────────────────────────
 networks:
   sprintflow-net-local:
     driver: bridge

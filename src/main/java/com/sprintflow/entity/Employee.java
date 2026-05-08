@@ -39,6 +39,9 @@ public class Employee {
     @Column(nullable = false, length = 10)
     private String status = "Active"; // Active, Inactive
 
+    @Column(nullable = false)
+    private boolean blocked = false; // When true, employee is blocked from all sprints
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -82,6 +85,9 @@ public class Employee {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public boolean isBlocked() { return blocked; }
+    public void setBlocked(boolean blocked) { this.blocked = blocked; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

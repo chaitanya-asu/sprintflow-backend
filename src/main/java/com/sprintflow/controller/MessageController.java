@@ -135,6 +135,41 @@ public class MessageController {
         messagingTemplate.convertAndSendToUser(otherEmail, "/queue/messages", receipt);
     }
 
+    @Operation(summary = "Mark messages as read via REST")
+    @PostMapping("/mark-read")
+    public ResponseEntity<ApiResponseDTO<Void>> markReadRest(
+            @RequestBody Map<String, String> body,
+            Principal principal) {
+        if (principal == null) return ResponseEntity.status(401).build();
+
+        String readerEmail = principal.getName().toLowerCase();
+        String otherEmail  = body.getOrDefault("conversationWith", "").toLowerCase();
+        if (otherEmail.isBlank()) return ResponseEntity.badRequest().build();
+
+        // Mark all unread messages from otherEmail → readerEmail as read
+        List<ChatMessage> unread = chatMessageRepository
+                .findConversation(readerEmail, otherEmail)
+                .stream()
+                .filter(m -> m.getRecipientEmail() != null && m.getRecipientEmail().equals(readerEmail) && m.getReadAt() == null)
+                .collect(Collectors.toList());
+
+        if (!unread.isEmpty()) {
+            LocalDateTime now = LocalDateTime.now();
+            unread.forEach(m -> m.setReadAt(now));
+            chatMessageRepository.saveAll(unread);
+
+            // Notify the original sender that their messages were read
+            Map<String, Object> receipt = Map.of(
+                    "type",             "READ_RECEIPT",
+                    "conversationWith", readerEmail,
+                    "readAt",           now.toString()
+            );
+            messagingTemplate.convertAndSendToUser(otherEmail, "/queue/messages", receipt);
+        }
+
+        return ok("Messages marked as read", null);
+    }
+
     // ── STOMP: presence status ────────────────────────────────
     @MessageMapping("/chat.status")
     public void updateStatus(@Payload Map<String, String> body,
@@ -154,6 +189,15 @@ public class MessageController {
         String email = principal.getName().toLowerCase();
         presenceMap.put(email, "online");
         messagingTemplate.convertAndSend("/topic/presence", Map.of("email", email, "status", "online"));
+    }
+
+    @MessageMapping("/chat.disconnect")
+    public void onDisconnect(SimpMessageHeaderAccessor headerAccessor) {
+        Principal principal = headerAccessor.getUser();
+        if (principal == null) return;
+        String email = principal.getName().toLowerCase();
+        presenceMap.remove(email);
+        messagingTemplate.convertAndSend("/topic/presence", Map.of("email", email, "status", "offline"));
     }
 
     // ── REST endpoints ────────────────────────────────────────

@@ -29,17 +29,24 @@ public class CohortService {
      * Get all unique cohorts with employee counts
      */
     public List<Map<String, Object>> getAllCohorts() {
-        List<Employee> employees = employeeRepository.findAll();
-        return employees.stream()
-                .collect(Collectors.groupingBy(e -> e.getTechnology() + "|" + e.getCohort()))
-                .entrySet().stream()
-                .map(entry -> {
-                    String[] parts = entry.getKey().split("\\|");
-                    Map<String, Object> cohort = new HashMap<>();
-                    cohort.put("technology", parts[0]);
-                    cohort.put("cohort", parts.length > 1 ? parts[1] : "Unknown");
-                    cohort.put("studentCount", entry.getValue().size());
-                    cohort.put("students", entry.getValue().stream()
+        List<Cohort> cohorts = cohortRepository.findAll();
+        List<Employee> allEmployees = employeeRepository.findAll();
+        
+        return cohorts.stream()
+                .map(cohort -> {
+                    List<Employee> students = allEmployees.stream()
+                            .filter(e -> e.getTechnology().equalsIgnoreCase(cohort.getTechnology()) && 
+                                       e.getCohort().equalsIgnoreCase(cohort.getCohortNumber()))
+                            .collect(Collectors.toList());
+                            
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", cohort.getId());
+                    map.put("name", cohort.getName());
+                    map.put("technology", cohort.getTechnology());
+                    map.put("cohort", cohort.getCohortNumber());
+                    map.put("status", cohort.getStatus());
+                    map.put("studentCount", students.size());
+                    map.put("students", students.stream()
                             .map(e -> Map.of(
                                     "id", e.getId(),
                                     "empId", e.getEmpId(),
@@ -48,7 +55,7 @@ public class CohortService {
                                     "status", e.getStatus()
                             ))
                             .collect(Collectors.toList()));
-                    return cohort;
+                    return map;
                 })
                 .collect(Collectors.toList());
     }
@@ -123,7 +130,7 @@ public class CohortService {
             throw new IllegalArgumentException("Technology and cohort number are required");
         }
 
-        String name = technology + " " + cohortNumber;
+        String name = technology + cohortNumber;
         
         if (cohortRepository.existsByName(name)) {
             throw new IllegalArgumentException("Cohort already exists: " + name);

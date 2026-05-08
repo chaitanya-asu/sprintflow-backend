@@ -31,6 +31,8 @@ public class AttendanceDTO {
     private String checkInTime;
     private String notes;
     private boolean submitted;
+    private boolean blocked;
+    private String blockedReason;
 
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     @JsonSerialize(using = LocalDateTimeSerializer.class)
@@ -190,4 +192,46 @@ public class AttendanceDTO {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public boolean isBlocked() { return blocked; }
+    public void setBlocked(boolean blocked) { this.blocked = blocked; }
+    public String getBlockedReason() { return blockedReason; }
+    public void setBlockedReason(String blockedReason) { this.blockedReason = blockedReason; }
+
+    // ── Latest per-sprint snapshot (Manager Dashboard SprintPerfCard) ──
+    public static class LatestSnapshotDTO {
+        private Long sprintId;
+        private String sprintTitle;
+        private String status;
+        private String attendanceDate;
+        private int enrolled;
+        private int present;
+        private int dnd;
+        private int absent;
+        private int onHold;
+        private int restricted;
+        private int attendanceRate;
+
+        public Long getSprintId() { return sprintId; }
+        public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
+        public String getSprintTitle() { return sprintTitle; }
+        public void setSprintTitle(String sprintTitle) { this.sprintTitle = sprintTitle; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public String getAttendanceDate() { return attendanceDate; }
+        public void setAttendanceDate(String attendanceDate) { this.attendanceDate = attendanceDate; }
+        public int getEnrolled() { return enrolled; }
+        public void setEnrolled(int enrolled) { this.enrolled = enrolled; }
+        public int getPresent() { return present; }
+        public void setPresent(int present) { this.present = present; }
+        public int getDnd() { return dnd; }
+        public void setDnd(int dnd) { this.dnd = dnd; }
+        public int getAbsent() { return absent; }
+        public void setAbsent(int absent) { this.absent = absent; }
+        public int getOnHold() { return onHold; }
+        public void setOnHold(int onHold) { this.onHold = onHold; }
+        public int getRestricted() { return restricted; }
+        public void setRestricted(int restricted) { this.restricted = restricted; }
+        public int getAttendanceRate() { return attendanceRate; }
+        public void setAttendanceRate(int attendanceRate) { this.attendanceRate = attendanceRate; }
+    }
 }

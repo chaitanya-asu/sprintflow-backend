@@ -11,6 +11,7 @@ import java.util.List;
 @Table(name = "sprints")
 @SQLDelete(sql = "UPDATE sprints SET deleted_at = NOW() WHERE id = ?")
 @Where(clause = "deleted_at IS NULL")
+@EntityListeners(SprintEntityListener.class)
 public class Sprint {
 
     @Id

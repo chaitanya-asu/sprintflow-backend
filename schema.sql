@@ -22,17 +22,24 @@ CREATE TABLE IF NOT EXISTS users (
   phone             VARCHAR(15),
   department        VARCHAR(100),
   trainer_role      VARCHAR(50),                        -- TRAINER only
+  trainer_type      VARCHAR(20),                        -- TECHNOLOGY | COMMUNICATION
+  trainer_technology VARCHAR(50),                       -- Java, Python, Devops, etc.
+  trainer_subject   VARCHAR(100),                       -- Spring Boot, Django, etc.
+  trainer_communication_type VARCHAR(100),              -- Soft Skills, Leadership, etc.
   status            VARCHAR(10)     NOT NULL DEFAULT 'Active',  -- Active | Inactive
   joined_date       DATE,
   temp_password     VARCHAR(255),
   password_changed  TINYINT(1)      NOT NULL DEFAULT 0,
   smtp_email        VARCHAR(150),                        -- MANAGER only: sender address
   smtp_password     VARCHAR(255),                        -- AES-256 encrypted App Password
+  reset_token       VARCHAR(255),                        -- Password reset token
+  reset_token_expiry DATETIME,                          -- Token expiration
   created_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
-  UNIQUE KEY uq_users_email (email)
+  UNIQUE KEY uq_users_email (email),
+  INDEX idx_users_reset_token (reset_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -82,7 +89,10 @@ CREATE TABLE IF NOT EXISTS rooms (
 CREATE TABLE IF NOT EXISTS sprints (
   id                BIGINT       NOT NULL AUTO_INCREMENT,
   title             VARCHAR(150) NOT NULL,
+  sprint_type       VARCHAR(20),                        -- TECHNOLOGY | COMMUNICATION
   technology        VARCHAR(20),
+  sprint_subject    VARCHAR(100),                       -- Spring Boot, Django, etc.
+  sprint_communication_type VARCHAR(100),               -- Soft Skills, Leadership, etc.
   cohort            VARCHAR(50),                        -- primary cohort
   cohorts_json      TEXT,                               -- JSON array for multi-cohort
   trainer_id        BIGINT,                             -- FK → users (TRAINER)
@@ -94,6 +104,7 @@ CREATE TABLE IF NOT EXISTS sprints (
   sprint_end_time   VARCHAR(20),                        -- e.g. 05:00 PM
   status            VARCHAR(15)  NOT NULL DEFAULT 'Scheduled',
   instructions      TEXT,
+  deleted_at        DATETIME,                           -- Soft delete timestamp
   created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -102,7 +113,9 @@ CREATE TABLE IF NOT EXISTS sprints (
   CONSTRAINT fk_sprints_created_by FOREIGN KEY (created_by)  REFERENCES users (id) ON DELETE SET NULL,
   INDEX idx_sprints_trainer   (trainer_id),
   INDEX idx_sprints_status    (status),
-  INDEX idx_sprints_dates     (start_date, end_date)
+  INDEX idx_sprints_dates     (start_date, end_date),
+  INDEX idx_sprints_deleted   (deleted_at),
+  INDEX idx_sprints_technology (technology)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -162,7 +175,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   sender_email     VARCHAR(150) NOT NULL,
   sender_name      VARCHAR(100) NOT NULL,
   sender_role      VARCHAR(20)  NOT NULL,
-  recipient_email  VARCHAR(150) NOT NULL,
+  recipient_email  VARCHAR(150),                       -- NULL for group messages
+  recipient_group_id BIGINT,                           -- FK → chat_groups
   content          TEXT         NOT NULL,
   sent_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   delivered        TINYINT(1)   NOT NULL DEFAULT 0,
@@ -171,8 +185,30 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   PRIMARY KEY (id),
   INDEX idx_cm_sender    (sender_email),
   INDEX idx_cm_recipient (recipient_email),
+  INDEX idx_cm_group     (recipient_group_id),
   INDEX idx_cm_convo     (sender_email, recipient_email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 7a. CHAT_GROUPS ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_groups (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  name             VARCHAR(100) NOT NULL,
+  created_by       VARCHAR(150) NOT NULL,
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS chat_group_members (
+  group_id         BIGINT       NOT NULL,
+  user_id          BIGINT       NOT NULL,
+
+  PRIMARY KEY (group_id, user_id),
+  CONSTRAINT fk_cgm_group FOREIGN KEY (group_id) REFERENCES chat_groups (id) ON DELETE CASCADE,
+  CONSTRAINT fk_cgm_user  FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 
 -- ── 8. MESSAGES ──────────────────────────────────────────────────
@@ -192,3 +228,107 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_msg_sender    (sender_email),
   INDEX idx_msg_recipient (recipient_email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 9. NOTIFICATIONS ─────────────────────────────────────────────
+-- Persistent notifications for users.
+-- type: INFO | SUCCESS | WARNING | ERROR | AUDIT
+CREATE TABLE IF NOT EXISTS notifications (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  user_email       VARCHAR(150) NOT NULL,
+  title            VARCHAR(150) NOT NULL,
+  message          TEXT         NOT NULL,
+  type             VARCHAR(20)  NOT NULL DEFAULT 'INFO',
+  is_read          TINYINT(1)   NOT NULL DEFAULT 0,
+  action_url       VARCHAR(255),
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  INDEX idx_notif_user (user_email),
+  INDEX idx_notif_read (is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 10. TASKS ────────────────────────────────────────────────────
+-- Tasks assigned to employees within a sprint.
+-- status: TODO | IN_PROGRESS | REVIEW | DONE | BLOCKED
+-- priority: LOW | MEDIUM | HIGH | CRITICAL
+CREATE TABLE IF NOT EXISTS tasks (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  title            VARCHAR(150) NOT NULL,
+  description      TEXT,
+  status           VARCHAR(20)  NOT NULL DEFAULT 'TODO',
+  priority         VARCHAR(20)  NOT NULL DEFAULT 'MEDIUM',
+  sprint_id        BIGINT       NOT NULL,
+  assigned_to_id   BIGINT,                             -- FK → employees (NOT users)
+  story_point      INT          DEFAULT 0,
+  estimated_hours  DOUBLE       DEFAULT 0.0,
+  actual_hours     DOUBLE       DEFAULT 0.0,
+  due_date         DATETIME,
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  CONSTRAINT fk_tasks_sprint   FOREIGN KEY (sprint_id)      REFERENCES sprints (id)   ON DELETE CASCADE,
+  CONSTRAINT fk_tasks_assignee FOREIGN KEY (assigned_to_id) REFERENCES employees (id) ON DELETE SET NULL,
+  INDEX idx_tasks_sprint   (sprint_id),
+  INDEX idx_tasks_status   (status),
+  INDEX idx_tasks_assignee (assigned_to_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 11. AUDIT_LOGS ───────────────────────────────────────────────
+-- System-wide audit trail for sensitive actions.
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  action           VARCHAR(100) NOT NULL,
+  performed_by     VARCHAR(150) NOT NULL,              -- user email
+  details          TEXT,
+  entity_name      VARCHAR(50),                        -- e.g. SPRINT, USER
+  entity_id        BIGINT,
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  INDEX idx_audit_action (action),
+  INDEX idx_audit_user   (performed_by),
+  INDEX idx_audit_entity (entity_name, entity_id),
+  INDEX idx_audit_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 12. COHORTS ──────────────────────────────────────────────────
+-- Cohort management table
+CREATE TABLE IF NOT EXISTS cohorts (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  name             VARCHAR(50)  NOT NULL UNIQUE,        -- C1, C2, C3, etc.
+  pattern_type     VARCHAR(50)  NOT NULL,               -- Java, Python, Devops, etc.
+  technology       VARCHAR(20),                         -- Mirror of pattern_type
+  cohort_number    VARCHAR(10),                         -- Just the number: 1, 2, 3
+  status           VARCHAR(20)  DEFAULT 'Active',
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  INDEX idx_cohorts_technology (technology),
+  INDEX idx_cohorts_pattern (pattern_type),
+  INDEX idx_cohorts_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 13. MASTER_DATA ──────────────────────────────────────────────
+-- Master data for dropdowns (technologies, subjects, communication types)
+CREATE TABLE IF NOT EXISTS master_data (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  category         VARCHAR(50)  NOT NULL,               -- TECHNOLOGY, SUBJECT, COMM_TYPE
+  value            VARCHAR(100) NOT NULL,
+  display_order    INT          DEFAULT 0,
+  status           VARCHAR(20)  DEFAULT 'Active',
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_master_data (category, value),
+  INDEX idx_master_data_category (category),
+  INDEX idx_master_data_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

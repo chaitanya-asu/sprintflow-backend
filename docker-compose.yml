@@ -27,7 +27,8 @@ services:
       - mysql_data:/var/lib/mysql
       # Auto-initialize schema on first start
       # MySQL runs all .sql files in this folder on first boot (when data volume is empty)
-      - ./docker/init:/docker-entrypoint-initdb.d:ro
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./MASTER_SEED.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
 
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
@@ -75,6 +76,9 @@ services:
       # In production this is https://YOUR_SERVER_IP (the Nginx HTTPS port)
       APP_CORS_ORIGINS: ${APP_CORS_ORIGINS}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL}
+
+      # Rate limiting — enable in production
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
 
       # Swagger — disable in production
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}

@@ -60,9 +60,11 @@ echo [STEP 2] Loading clean seed data...
 echo.
 
 if "%MYSQL_PASS%"=="" (
-    mysql -u %MYSQL_USER% sprintflow_db < CLEAN_SEED.sql
+    mysql -u %MYSQL_USER% sprintflow_db < schema.sql
+    mysql -u %MYSQL_USER% sprintflow_db < MASTER_SEED.sql
 ) else (
-    mysql -u %MYSQL_USER% -p%MYSQL_PASS% sprintflow_db < CLEAN_SEED.sql
+    mysql -u %MYSQL_USER% -p%MYSQL_PASS% sprintflow_db < schema.sql
+    mysql -u %MYSQL_USER% -p%MYSQL_PASS% sprintflow_db < MASTER_SEED.sql
 )
 
 if %ERRORLEVEL% EQU 0 (

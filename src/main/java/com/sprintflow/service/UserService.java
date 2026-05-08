@@ -1,19 +1,20 @@
 package com.sprintflow.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import com.sprintflow.dto.UserDTO;
 import com.sprintflow.entity.Role;
 import com.sprintflow.entity.User;
 import com.sprintflow.exception.DuplicateResourceException;
 import com.sprintflow.exception.ResourceNotFoundException;
 import com.sprintflow.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class UserService {

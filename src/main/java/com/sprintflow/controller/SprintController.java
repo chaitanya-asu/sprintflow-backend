@@ -1,12 +1,37 @@
 package com.sprintflow.controller;
 
-import com.sprintflow.dto.SprintDTO;
+import java.security.Principal;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sprintflow.dto.ApiResponseDTO;
 import com.sprintflow.dto.EmployeeDTO;
 import com.sprintflow.dto.RoomAvailabilityDTO;
+import com.sprintflow.dto.SprintDTO;
 import com.sprintflow.repository.UserRepository;
-import com.sprintflow.service.SprintService;
 import com.sprintflow.service.EmployeeService;
+import com.sprintflow.service.SprintService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,18 +39,6 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/sprints")
@@ -38,7 +51,7 @@ public class SprintController {
 
     @Operation(
         summary     = "List all sprints",
-        description = "Returns sprints. Supports `status` filter, `q` keyword search, and optional `page`/`pageSize` pagination. " +
+        description = "Returns sprints. Supports `status`, `technology`, and `q` keyword search filters. " +
                       "When `page` is provided returns `{ items, total, page, pageSize }`. Otherwise returns a plain array."
     )
     @GetMapping
@@ -54,30 +67,35 @@ public class SprintController {
             @Parameter(description = "Page size", example = "8")
             @RequestParam(required = false) Integer pageSize) {
 
-        List<SprintDTO> sprints = status != null && !status.isBlank()
-                ? sprintService.getSprintsByStatus(status)
-                : sprintService.getAllSprints();
-
-        if (q != null && !q.isBlank()) {
-            String lq = q.trim().toLowerCase();
-            sprints = sprints.stream()
-                    .filter(s -> (s.getTitle()   != null && s.getTitle().toLowerCase().contains(lq))
-                              || (s.getTrainer() != null && s.getTrainer().toLowerCase().contains(lq)))
-                    .collect(Collectors.toList());
-        }
+        String lq = (q != null && !q.isBlank()) ? q.trim() : null;
+        String ls = (status != null && !status.isBlank()) ? status.trim() : null;
+        String lt = (technology != null && !technology.isBlank()) ? technology.trim() : null;
 
         if (page != null && page > 0) {
-            int size  = (pageSize != null && pageSize > 0) ? pageSize : 10;
-            int total = sprints.size();
-            int from  = (page - 1) * size;
-            int to    = Math.min(from + size, total);
-            List<SprintDTO> items = (from < total && to > from) ? sprints.subList(from, to) : List.of();
-            Map<String, Object> paged = new HashMap<>();
-            paged.put("items",    items);
-            paged.put("total",    total);
-            paged.put("page",     page);
-            paged.put("pageSize", size);
-            return ok("Sprints retrieved successfully", paged);
+            int size = (pageSize != null && pageSize > 0) ? pageSize : 10;
+            Page<SprintDTO> paged = sprintService.getSprintsByFilters(ls, lt, lq, PageRequest.of(page - 1, size, Sort.by("startDate").descending()));
+            Map<String, Object> result = new HashMap<>();
+            result.put("items", paged.getContent());
+            result.put("total", paged.getTotalElements());
+            result.put("page", page);
+            result.put("pageSize", size);
+            return ok("Sprints retrieved successfully", result);
+        }
+
+        List<SprintDTO> sprints = ls != null
+                ? sprintService.getSprintsByStatus(ls)
+                : sprintService.getAllSprints();
+
+        if (lq != null) {
+            String search = lq.toLowerCase();
+            sprints = sprintService.filterSprintsByKeyword(sprints, search);
+        }
+
+        if (lt != null) {
+            String tech = lt.toLowerCase();
+            sprints = sprints.stream()
+                    .filter(s -> s.getTechnology() != null && s.getTechnology().toLowerCase().contains(tech))
+                    .collect(java.util.stream.Collectors.toList());
         }
 
         return ok("Sprints retrieved successfully", sprints);
@@ -172,7 +190,30 @@ public class SprintController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponseDTO<SprintDTO>> updateSprint(
             @PathVariable Long id, @RequestBody SprintDTO dto) {
-        return ok("Sprint updated successfully", sprintService.updateSprint(id, dto));
+        
+        // Validate required fields for update
+        if (dto.getTitle() != null && dto.getTitle().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Sprint title cannot be empty")
+                    .statusCode(400).build());
+        }
+        
+        if (dto.getStartDate() != null && dto.getEndDate() != null && dto.getStartDate().isAfter(dto.getEndDate())) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message("Start date must be before end date")
+                    .statusCode(400).build());
+        }
+        
+        try {
+            return ok("Sprint updated successfully", sprintService.updateSprint(id, dto));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<SprintDTO>builder()
+                    .success(false).message(e.getMessage())
+                    .statusCode(400).build());
+        }
     }
 
     @Operation(
@@ -224,6 +265,12 @@ public class SprintController {
         return ok("Sprint employees retrieved successfully", employeeService.getSprintEmployees(id));
     }
 
+    @Operation(summary = "Get employees enrolled in a sprint with blocked status")
+    @GetMapping("/{id}/employees/detailed")
+    public ResponseEntity<ApiResponseDTO<List<Map<String, Object>>>> getSprintEmployeesDetailed(@PathVariable Long id) {
+        return ok("Sprint employees with blocked status retrieved successfully", employeeService.getSprintEmployeesWithBlockedStatus(id));
+    }
+
     @Operation(
         summary     = "Enroll employee in sprint",
         description = "Alias path used by the frontend. Delegates to EmployeeService.",
@@ -234,6 +281,12 @@ public class SprintController {
     @PostMapping("/{id}/employees")
     public ResponseEntity<ApiResponseDTO<String>> enrollEmployee(
             @PathVariable Long id, @RequestBody Map<String, Long> body) {
+        if (body == null || body.get("employeeId") == null) {
+            return ResponseEntity.badRequest().body(
+                ApiResponseDTO.<String>builder()
+                    .success(false).message("Employee ID is required")
+                    .statusCode(400).build());
+        }
         employeeService.enrollEmployee(id, body.get("employeeId"));
         return ok("Employee enrolled successfully", null);
     }
@@ -276,6 +329,38 @@ public class SprintController {
     @GetMapping("/rooms/availability")
     public ResponseEntity<ApiResponseDTO<List<RoomAvailabilityDTO>>> getRoomAvailability() {
         return ok("Room availability retrieved", sprintService.getRoomAvailability());
+    }
+
+    @Operation(summary = "Block employee from sprint (manager/HR only)")
+    @PostMapping("/{sprintId}/employees/{employeeId}/block")
+    public ResponseEntity<ApiResponseDTO<Void>> blockEmployee(
+            @PathVariable Long sprintId,
+            @PathVariable Long employeeId,
+            @RequestBody Map<String, String> body,
+            Principal principal) {
+        Long userId = resolveUserId(principal);
+        String reason = body.getOrDefault("reason", "Blocked by manager");
+        sprintService.blockEmployeeFromSprint(sprintId, employeeId, reason, userId);
+        return ok("Employee blocked from sprint", null);
+    }
+
+    @Operation(summary = "Unblock employee from sprint (manager/HR only)")
+    @PostMapping("/{sprintId}/employees/{employeeId}/unblock")
+    public ResponseEntity<ApiResponseDTO<Void>> unblockEmployee(
+            @PathVariable Long sprintId,
+            @PathVariable Long employeeId,
+            Principal principal) {
+        sprintService.unblockEmployeeFromSprint(sprintId, employeeId);
+        return ok("Employee unblocked from sprint", null);
+    }
+
+    @Operation(summary = "Check if employee is blocked from sprint")
+    @GetMapping("/{sprintId}/employees/{employeeId}/blocked")
+    public ResponseEntity<ApiResponseDTO<Boolean>> isEmployeeBlocked(
+            @PathVariable Long sprintId,
+            @PathVariable Long employeeId) {
+        boolean blocked = sprintService.isEmployeeBlockedFromSprint(sprintId, employeeId);
+        return ok("Blocked status retrieved", blocked);
     }
 
     // ── Helpers ───────────────────────────────────────────────
