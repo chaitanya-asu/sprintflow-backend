@@ -111,14 +111,14 @@ CREATE TABLE IF NOT EXISTS sprint_employees (
 
 -- ── 5. ATTENDANCE ────────────────────────────────────────────────
 -- One row per (sprint, employee, date).
--- status   : Present | Late | Absent
+-- status   : Present | DNA | Absent | On Hold | Restricted
 -- submitted: locked after trainer submits the day's attendance
 CREATE TABLE IF NOT EXISTS attendance (
   id               BIGINT      NOT NULL AUTO_INCREMENT,
   sprint_id        BIGINT      NOT NULL,
   employee_id      BIGINT      NOT NULL,
   attendance_date  DATE        NOT NULL,
-  status           VARCHAR(10) NOT NULL,               -- Present | Late | Absent
+  status           VARCHAR(10) NOT NULL,               -- Present | DNA | Absent | On Hold | Restricted
   check_in_time    VARCHAR(20),                        -- e.g. 09:15 AM
   notes            VARCHAR(255),
   submitted        TINYINT(1)  NOT NULL DEFAULT 0,

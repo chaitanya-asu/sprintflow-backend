@@ -27,7 +27,7 @@ public class AttendanceService {
 
     private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);
     private static final String ATTENDANCE_STATUS_PRESENT = "Present";
-    private static final String ATTENDANCE_STATUS_LATE = "Late";
+    private static final String ATTENDANCE_STATUS_DNA = "DNA";
     private static final String ATTENDANCE_STATUS_ABSENT = "Absent";
 
     @Autowired private AttendanceRepository attendanceRepository;
@@ -130,14 +130,14 @@ public class AttendanceService {
 
             long total = ((Number) row[1]).longValue();
             long present = ((Number) row[2]).longValue();
-            long late = ((Number) row[3]).longValue();
+            long dna = ((Number) row[3]).longValue();
             long absent = ((Number) row[4]).longValue();
 
             stats.setTotalDays(total);
             stats.setPresentDays(present);
-            stats.setLateDays(late);
+            stats.setLateDays(dna);
             stats.setAbsentDays(absent);
-            stats.setPresentPercentage(calculatePercentage(present + late, total));
+            stats.setPresentPercentage(calculatePercentage(present + dna, total));
             return stats;
         }).collect(Collectors.toList());
     }
@@ -155,14 +155,14 @@ public class AttendanceService {
 
             long total = ((Number) row[2]).longValue();
             long present = ((Number) row[3]).longValue();
-            long late = ((Number) row[4]).longValue();
+            long dna = ((Number) row[4]).longValue();
             long absent = ((Number) row[5]).longValue();
 
             stats.setTotalDays(total);
             stats.setPresentDays(present);
-            stats.setLateDays(late);
+            stats.setLateDays(dna);
             stats.setAbsentDays(absent);
-            stats.setPresentPercentage(calculatePercentage(present + late, total));
+            stats.setPresentPercentage(calculatePercentage(present + dna, total));
             return stats;
         }).collect(Collectors.toList());
     }
@@ -176,30 +176,30 @@ public class AttendanceService {
 
             long total = ((Number) row[2]).longValue();
             long present = ((Number) row[3]).longValue();
-            long late = ((Number) row[4]).longValue();
+            long dna = ((Number) row[4]).longValue();
             long absent = ((Number) row[5]).longValue();
 
             stats.setTotalDays(total);
             stats.setPresentDays(present);
-            stats.setLateDays(late);
+            stats.setLateDays(dna);
             stats.setAbsentDays(absent);
-            stats.setPresentPercentage(calculatePercentage(present + late, total));
+            stats.setPresentPercentage(calculatePercentage(present + dna, total));
             return stats;
         }).collect(Collectors.toList());
     }
 
     public AttendanceDTO.SummaryDTO getSummary() {
         long present = attendanceRepository.countByStatus(ATTENDANCE_STATUS_PRESENT);
-        long late = attendanceRepository.countByStatus(ATTENDANCE_STATUS_LATE);
+        long dna = attendanceRepository.countByStatus(ATTENDANCE_STATUS_DNA);
         long absent = attendanceRepository.countByStatus(ATTENDANCE_STATUS_ABSENT);
-        long total = present + late + absent;
+        long total = present + dna + absent;
 
         AttendanceDTO.SummaryDTO summary = new AttendanceDTO.SummaryDTO();
         summary.setTotalRecords(total);
         summary.setPresentCount(present);
-        summary.setLateCount(late);
+        summary.setLateCount(dna);
         summary.setAbsentCount(absent);
-        summary.setOverallPresentPercentage(calculatePercentage(present + late, total));
+        summary.setOverallPresentPercentage(calculatePercentage(present + dna, total));
         return summary;
     }
 

@@ -179,7 +179,7 @@ CHECK (status IN ('Active', 'Inactive'));
 
 ALTER TABLE attendance 
 ADD CONSTRAINT IF NOT EXISTS chk_attendance_status 
-CHECK (status IN ('Present', 'Late', 'Absent'));
+CHECK (status IN ('Present', 'DNA', 'Absent', 'On Hold', 'Restricted'));
 
 -- ══════════════════════════════════════════════════════════════════════════════
 -- FIX 9: Update Existing Data for Compatibility

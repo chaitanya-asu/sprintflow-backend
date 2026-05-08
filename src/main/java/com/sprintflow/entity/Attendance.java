@@ -24,7 +24,7 @@ public class Attendance {
     @Column(name = "attendance_date", nullable = false)
     private LocalDate attendanceDate;
 
-    // Present, Late, Absent
+    // Present, DNA, Absent, On Hold, Restricted
     @Column(nullable = false, length = 10)
     private String status;
 

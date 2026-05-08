@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('TO_DO', 'IN_PROGRESS', 'COMPLETED', 'BLOCKED') NOT NULL DEFAULT 'TO_DO',
+    status ENUM('NOT_STARTED', 'IN_PROGRESS', 'NOT_SUBMITTED', 'CLOSED') NOT NULL DEFAULT 'NOT_STARTED',
     priority ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') NOT NULL DEFAULT 'MEDIUM',
     sprint_id BIGINT NULL,
     assigned_to VARCHAR(255),
@@ -30,6 +30,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 -- Sample data for testing (optional)
 -- INSERT INTO tasks (title, description, status, priority, assigned_to, created_by, due_date) VALUES
--- ('Setup development environment', 'Install all required tools and dependencies', 'TO_DO', 'HIGH', 'surya.p@sprintflow.com', 'surya@sprintflow.com', '2026-05-15'),
+-- ('Setup development environment', 'Install all required tools and dependencies', 'NOT_STARTED', 'HIGH', 'surya.p@sprintflow.com', 'surya@sprintflow.com', '2026-05-15'),
 -- ('Review sprint requirements', 'Go through all sprint requirements and clarify doubts', 'IN_PROGRESS', 'MEDIUM', 'surya.p@sprintflow.com', 'satwika@sprintflow.com', '2026-05-10'),
--- ('Prepare training materials', 'Create slides and code examples for the session', 'TO_DO', 'HIGH', 'satwika@sprintflow.com', 'surya@sprintflow.com', '2026-05-12');
+-- ('Prepare training materials', 'Create slides and code examples for the session', 'NOT_STARTED', 'HIGH', 'satwika@sprintflow.com', 'surya@sprintflow.com', '2026-05-12');

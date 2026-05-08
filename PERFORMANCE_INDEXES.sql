@@ -101,7 +101,7 @@ ON attendance(employee_id, attendance_date DESC);
 CREATE INDEX IF NOT EXISTS idx_attendance_sprint_emp_date 
 ON attendance(sprint_id, employee_id, attendance_date);
 
--- Index for status filtering (Present/Late/Absent)
+-- Index for status filtering (Present/DNA/Absent/On Hold/Restricted)
 CREATE INDEX IF NOT EXISTS idx_attendance_status 
 ON attendance(status);
 

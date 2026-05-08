@@ -60,6 +60,24 @@ public class UserController {
     }
 
     @Operation(
+        summary     = "List trainers (path-based)",
+        description = "Returns active trainers. Equivalent to `GET /api/users?role=TRAINER`."
+    )
+    @GetMapping("/trainers")
+    public ResponseEntity<ApiResponseDTO<List<UserDTO>>> getTrainers() {
+        return ok("Trainers retrieved successfully", userService.getUsersByRole("TRAINER"));
+    }
+
+    @Operation(
+        summary     = "List HR Business Partners (path-based)",
+        description = "Returns active HR users. Equivalent to `GET /api/users?role=HR`."
+    )
+    @GetMapping("/hrbps")
+    public ResponseEntity<ApiResponseDTO<List<UserDTO>>> getHRBPs() {
+        return ok("HR BPs retrieved successfully", userService.getUsersByRole("HR"));
+    }
+
+    @Operation(
         summary     = "Filter trainers by type and technology",
         description = "Returns trainers filtered by trainer type (TECHNOLOGY/COMMUNICATION) and optionally by technology. " +
                       "Used in HR Create Sprint form to show only relevant trainers."
