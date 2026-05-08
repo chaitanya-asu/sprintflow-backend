@@ -27,7 +27,7 @@ public class Task {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private TaskStatus status = TaskStatus.TO_DO;
+    private TaskStatus status = TaskStatus.NOT_STARTED;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
