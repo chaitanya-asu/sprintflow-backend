@@ -77,10 +77,10 @@ public class Task {
     }
 
     public enum TaskStatus {
-        TO_DO("To Do"),
+        NOT_STARTED("Not Started"),
         IN_PROGRESS("In Progress"),
-        COMPLETED("Completed"),
-        BLOCKED("Blocked");
+        NOT_SUBMITTED("Not Submitted"),
+        CLOSED("Closed");
 
         private final String displayName;
 
