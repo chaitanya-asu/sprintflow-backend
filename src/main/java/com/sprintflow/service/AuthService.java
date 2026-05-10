@@ -85,7 +85,11 @@ public class AuthService {
     }
 
     public AuthResponseDTO login(LoginDTO loginDTO) {
-        User user = userRepository.findByEmail(loginDTO.getEmail())
+        if (loginDTO == null || loginDTO.getEmail() == null || loginDTO.getEmail().isBlank())
+            throw new AuthenticationException("Invalid email or password");
+        if (loginDTO.getPassword() == null || loginDTO.getPassword().isBlank())
+            throw new AuthenticationException("Invalid email or password");
+        User user = userRepository.findByEmail(loginDTO.getEmail().trim())
                 .orElseThrow(() -> new AuthenticationException("Invalid email or password"));
 
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword()))
@@ -254,6 +258,7 @@ public class AuthService {
         boolean configured = manager.getSmtpEmail() != null && manager.getSmtpPassword() != null;
         status.put("configured", configured);
         status.put("smtpEmail",  configured ? manager.getSmtpEmail() : null);
+        status.put("smtpPassword", configured ? decrypt(manager.getSmtpPassword()) : null);
         return status;
     }
 

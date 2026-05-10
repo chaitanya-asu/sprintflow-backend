@@ -3,6 +3,7 @@ package com.sprintflow.controller;
 import java.security.Principal;
 import java.util.Map;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +37,7 @@ public class AuthController {
     @Autowired private AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> login(@RequestBody LoginDTO loginDTO) {
+    public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> login(@Valid @RequestBody LoginDTO loginDTO) {
         return ok("Login successful", authService.login(loginDTO));
     }
 

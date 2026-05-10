@@ -1,33 +1,51 @@
 package com.sprintflow.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.List;
+import java.util.Properties;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sprintflow.entity.User;
+import com.sprintflow.repository.UserRepository;
+
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Email Service
- * Handles all email notifications including password reset, attendance alerts, etc.
- */
 @Service
 public class EmailService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("hh:mm a");
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int GCM_TAG_LENGTH = 128;
+    private static final int GCM_IV_LENGTH = 12;
+
+    @Autowired private UserRepository userRepository;
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
+
+    @Value("${app.mail.encryption-key:SprintFlow#MailKey@2024!}")
+    private String encryptionKey;
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -35,17 +53,115 @@ public class EmailService {
     @Value("${spring.mail.username:noreply@sprintflow.com}")
     private String fromEmail;
 
-    /**
-     * Send password reset email
-     */
+    // ── AES decryption (matches AuthService) ────────────────────
+    private SecretKeySpec aesKey() {
+        byte[] raw = encryptionKey.getBytes(StandardCharsets.UTF_8);
+        byte[] key = new byte[32];
+        System.arraycopy(raw, 0, key, 0, Math.min(raw.length, 32));
+        return new SecretKeySpec(key, "AES");
+    }
+
+    private String decrypt(String encrypted) {
+        try {
+            byte[] combined = Base64.getDecoder().decode(encrypted);
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            byte[] ciphertext = new byte[combined.length - GCM_IV_LENGTH];
+            System.arraycopy(combined, 0, iv, 0, GCM_IV_LENGTH);
+            System.arraycopy(combined, GCM_IV_LENGTH, ciphertext, 0, ciphertext.length);
+            Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+            GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            c.init(Cipher.DECRYPT_MODE, aesKey(), spec);
+            return new String(c.doFinal(ciphertext), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RuntimeException("Decryption failed", e);
+        }
+    }
+
+    // ── Dynamic sender resolution ──────────────────────────────
+
+    private JavaMailSender resolveSender() {
+        if (mailSender != null) return mailSender;
+        List<User> managers = userRepository.findByRole(com.sprintflow.entity.Role.MANAGER);
+        for (User m : managers) {
+            if (m.getSmtpEmail() != null && m.getSmtpPassword() != null) {
+                try {
+                    String pwd = decrypt(m.getSmtpPassword());
+                    JavaMailSenderImpl sender = new JavaMailSenderImpl();
+                    sender.setHost("smtp.gmail.com");
+                    sender.setPort(587);
+                    sender.setUsername(m.getSmtpEmail());
+                    sender.setPassword(pwd);
+                    Properties props = sender.getJavaMailProperties();
+                    props.put("mail.transport.protocol", "smtp");
+                    props.put("mail.smtp.auth", "true");
+                    props.put("mail.smtp.starttls.enable", "true");
+                    props.put("mail.smtp.connectiontimeout", "10000");
+                    props.put("mail.smtp.timeout", "10000");
+                    props.put("mail.smtp.writetimeout", "10000");
+                    sender.setJavaMailProperties(props);
+                    logger.info("Dynamically configured mail sender for: {}", m.getSmtpEmail());
+                    return sender;
+                } catch (Exception e) {
+                    logger.warn("Failed to build mail sender for {}: {}", m.getSmtpEmail(), e.getMessage());
+                }
+            }
+        }
+        return null;
+    }
+
+    private String resolveFromEmail() {
+        if (mailSender != null) return fromEmail;
+        List<User> managers = userRepository.findByRole(com.sprintflow.entity.Role.MANAGER);
+        for (User m : managers) {
+            if (m.getSmtpEmail() != null) return m.getSmtpEmail();
+        }
+        return fromEmail;
+    }
+
+    // ── Core send methods ──────────────────────────────────────
+
+    private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException {
+        JavaMailSender sender = resolveSender();
+        if (sender == null) {
+            logger.warn("Mail sender not configured. Email not sent to: {}", to);
+            return;
+        }
+
+        MimeMessage message = sender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(resolveFromEmail());
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true);
+
+        sender.send(message);
+    }
+
+    private void sendSimpleEmail(String to, String subject, String text) {
+        JavaMailSender sender = resolveSender();
+        if (sender == null) {
+            logger.warn("Mail sender not configured. Email not sent to: {}", to);
+            return;
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(resolveFromEmail());
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(text);
+
+        sender.send(message);
+    }
+
+    // ── Public API ─────────────────────────────────────────────
+
     @Async
     public void sendPasswordResetEmail(String toEmail, String userName, String resetToken) {
         try {
             String resetLink = frontendUrl + "/reset-password?token=" + resetToken;
-            
             String subject = "SprintFlow - Password Reset Request";
             String htmlContent = buildPasswordResetEmail(userName, resetLink);
-            
             sendHtmlEmail(toEmail, subject, htmlContent);
             logger.info("Password reset email sent to: {}", toEmail);
         } catch (Exception e) {
@@ -53,17 +169,12 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send welcome email to new user
-     */
     @Async
     public void sendWelcomeEmail(String toEmail, String userName, String temporaryPassword) {
         try {
             String loginLink = frontendUrl + "/login";
-            
             String subject = "Welcome to SprintFlow!";
             String htmlContent = buildWelcomeEmail(userName, temporaryPassword, loginLink);
-            
             sendHtmlEmail(toEmail, subject, htmlContent);
             logger.info("Welcome email sent to: {}", toEmail);
         } catch (Exception e) {
@@ -71,16 +182,12 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send absence notification email
-     */
     @Async
-    public void sendAbsenceNotification(String toEmail, String employeeName, String sprintTitle, 
+    public void sendAbsenceNotification(String toEmail, String employeeName, String sprintTitle,
                                        LocalDateTime date, String managerEmail) {
         try {
             String subject = "SprintFlow - Absence Notification";
             String htmlContent = buildAbsenceEmail(employeeName, sprintTitle, date, managerEmail);
-            
             sendHtmlEmail(toEmail, subject, htmlContent);
             logger.info("Absence notification sent to: {}", toEmail);
         } catch (Exception e) {
@@ -88,16 +195,12 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send sprint assignment notification
-     */
     @Async
     public void sendSprintAssignmentEmail(String toEmail, String trainerName, String sprintTitle,
                                          LocalDateTime startDate, LocalDateTime endDate, String room) {
         try {
             String subject = "SprintFlow - New Sprint Assignment";
             String htmlContent = buildSprintAssignmentEmail(trainerName, sprintTitle, startDate, endDate, room);
-            
             sendHtmlEmail(toEmail, subject, htmlContent);
             logger.info("Sprint assignment email sent to: {}", toEmail);
         } catch (Exception e) {
@@ -105,15 +208,11 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send sprint update notification
-     */
     @Async
     public void sendSprintUpdateEmail(String toEmail, String sprintTitle, String updateDetails) {
         try {
             String subject = "SprintFlow - Sprint Update";
             String htmlContent = buildSprintUpdateEmail(sprintTitle, updateDetails);
-            
             sendHtmlEmail(toEmail, subject, htmlContent);
             logger.info("Sprint update email sent to: {}", toEmail);
         } catch (Exception e) {
@@ -121,16 +220,12 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send task assignment notification
-     */
     @Async
     public void sendTaskAssignmentEmail(String toEmail, String assigneeName, String taskTitle,
                                        String priority, LocalDateTime dueDate) {
         try {
             String subject = "SprintFlow - New Task Assignment";
             String htmlContent = buildTaskAssignmentEmail(assigneeName, taskTitle, priority, dueDate);
-            
             sendHtmlEmail(toEmail, subject, htmlContent);
             logger.info("Task assignment email sent to: {}", toEmail);
         } catch (Exception e) {
@@ -138,42 +233,22 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send HTML email
-     */
-    private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException {
-        if (mailSender == null) {
-            logger.warn("Mail sender not configured. Email not sent to: {}", to);
-            return;
-        }
-
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        
-        helper.setFrom(fromEmail);
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(htmlContent, true);
-        
-        mailSender.send(message);
+    @Async
+    public void sendCredentials(String toEmail, String userName, String temporaryPassword) {
+        sendWelcomeEmail(toEmail, userName, temporaryPassword);
     }
 
-    /**
-     * Send simple text email
-     */
-    private void sendSimpleEmail(String to, String subject, String text) {
-        if (mailSender == null) {
-            logger.warn("Mail sender not configured. Email not sent to: {}", to);
-            return;
+    public void sendCredentialsSync(String toEmail, String userName, String temporaryPassword) {
+        try {
+            String loginLink = frontendUrl + "/login";
+            String subject = "SprintFlow - Your Login Credentials";
+            String htmlContent = buildWelcomeEmail(userName, temporaryPassword, loginLink);
+            sendHtmlEmail(toEmail, subject, htmlContent);
+            logger.info("Credentials email (sync) sent to: {}", toEmail);
+        } catch (Exception e) {
+            logger.error("Failed to send credentials email to: {}", toEmail, e);
+            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
         }
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromEmail);
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(text);
-        
-        mailSender.send(message);
     }
 
     // ── Email Templates ──────────────────────────────────────────────────────
@@ -240,7 +315,7 @@ public class EmailService {
                         <p>Your SprintFlow account has been created successfully!</p>
                         <div class="credentials">
                             <p><strong>Temporary Password:</strong> %s</p>
-                            <p style="color: #d97706; font-size: 14px;">⚠️ Please change your password after first login.</p>
+                            <p style="color: #d97706; font-size: 14px;">\u26a0\ufe0f Please change your password after first login.</p>
                         </div>
                         <a href="%s" class="button">Login Now</a>
                         <p>If you have any questions, please contact your administrator.</p>
@@ -294,7 +369,7 @@ public class EmailService {
             """, employeeName, sprintTitle, date.format(DATE_FORMATTER), managerEmail);
     }
 
-    private String buildSprintAssignmentEmail(String trainerName, String sprintTitle, 
+    private String buildSprintAssignmentEmail(String trainerName, String sprintTitle,
                                              LocalDateTime startDate, LocalDateTime endDate, String room) {
         return String.format("""
             <!DOCTYPE html>
@@ -332,7 +407,7 @@ public class EmailService {
                 </div>
             </body>
             </html>
-            """, trainerName, sprintTitle, startDate.format(DATE_FORMATTER), 
+            """, trainerName, sprintTitle, startDate.format(DATE_FORMATTER),
                  endDate.format(DATE_FORMATTER), room);
     }
 
@@ -373,7 +448,7 @@ public class EmailService {
             """, sprintTitle, updateDetails);
     }
 
-    private String buildTaskAssignmentEmail(String assigneeName, String taskTitle, 
+    private String buildTaskAssignmentEmail(String assigneeName, String taskTitle,
                                            String priority, LocalDateTime dueDate) {
         return String.format("""
             <!DOCTYPE html>
@@ -414,33 +489,7 @@ public class EmailService {
                 </div>
             </body>
             </html>
-            """, assigneeName, taskTitle, priority.toLowerCase(), priority, 
+            """, assigneeName, taskTitle, priority.toLowerCase(), priority,
                  dueDate.format(DATE_FORMATTER));
-    }
-
-    /**
-     * Send login credentials to a new user (async).
-     * Called by UserService when creating or reactivating a user.
-     */
-    @Async
-    public void sendCredentials(String toEmail, String userName, String temporaryPassword) {
-        sendWelcomeEmail(toEmail, userName, temporaryPassword);
-    }
-
-    /**
-     * Send login credentials synchronously (used for test-email feature).
-     * Throws on SMTP failure so the caller can surface the error.
-     */
-    public void sendCredentialsSync(String toEmail, String userName, String temporaryPassword) {
-        try {
-            String loginLink = frontendUrl + "/login";
-            String subject = "SprintFlow - Your Login Credentials";
-            String htmlContent = buildWelcomeEmail(userName, temporaryPassword, loginLink);
-            sendHtmlEmail(toEmail, subject, htmlContent);
-            logger.info("Credentials email (sync) sent to: {}", toEmail);
-        } catch (Exception e) {
-            logger.error("Failed to send credentials email to: {}", toEmail, e);
-            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
-        }
     }
 }

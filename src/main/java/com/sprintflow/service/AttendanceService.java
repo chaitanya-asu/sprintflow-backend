@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,7 @@ public class AttendanceService {
     @Autowired private SprintEmployeeRepository sprintEmployeeRepository;
     @Autowired private NotificationService   notificationService;
     @Autowired private WebSocketSyncService  webSocketSyncService;
+    @Autowired(required = false) private EmailService emailService;
 
     @Transactional
     public void submitAttendance(AttendanceDTO.SubmitRequest request, Long userId) {
@@ -50,6 +52,8 @@ public class AttendanceService {
             logger.warn("No attendance records provided for sprint: {}", request.getSprintId());
             return;
         }
+
+        boolean sendEmails = request.isSendAbsenceEmails();
 
         for (AttendanceDTO.SubmitRequest.AttendanceRecord record : request.getRecords()) {
             Employee employee = employeeRepository.findById(record.getEmployeeId())
@@ -69,8 +73,10 @@ public class AttendanceService {
 
             attendanceRepository.save(attendance);
 
-            // Notify critical absence
-            if (ATTENDANCE_STATUS_ABSENT.equalsIgnoreCase(record.getStatus())) {
+            boolean isAbsent = ATTENDANCE_STATUS_ABSENT.equalsIgnoreCase(record.getStatus());
+
+            // Notify critical absence (in-app)
+            if (isAbsent) {
                 try {
                     User creator = sprint.getCreatedBy();
                     if (creator != null) {
@@ -80,12 +86,28 @@ public class AttendanceService {
                             .message(employee.getName() + " is absent from sprint: " + sprint.getTitle())
                             .type("WARNING")
                             .isRead(false)
-                            .createdAt(java.time.LocalDateTime.now())
+                            .createdAt(LocalDateTime.now())
                             .build();
                         notificationService.create(notif);
                     }
                 } catch (Exception e) {
                     logger.error("Error sending absence notification", e);
+                }
+            }
+
+            // Send absence email if flag is set
+            if (sendEmails && isAbsent && emailService != null && employee.getEmail() != null) {
+                try {
+                    String managerEmail = sprint.getCreatedBy() != null ? sprint.getCreatedBy().getEmail() : "Manager";
+                    emailService.sendAbsenceNotification(
+                        employee.getEmail(),
+                        employee.getName(),
+                        sprint.getTitle(),
+                        request.getAttendanceDate().atStartOfDay(),
+                        managerEmail
+                    );
+                } catch (Exception e) {
+                    logger.error("Error sending absence email to {}: {}", employee.getEmail(), e.getMessage());
                 }
             }
         }
