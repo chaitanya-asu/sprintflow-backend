@@ -176,3 +176,35 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_msg_sender    (sender_email),
   INDEX idx_msg_recipient (recipient_email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 8. ROOMS ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rooms (
+  id           BIGINT       NOT NULL AUTO_INCREMENT,
+  name         VARCHAR(100) NOT NULL,
+  capacity     INT          NOT NULL,
+  status       VARCHAR(20)  NOT NULL DEFAULT 'Active',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_rooms_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 9. COHORTS ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS cohorts (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  name             VARCHAR(50)  NOT NULL UNIQUE,
+  pattern_type     VARCHAR(50)  NOT NULL,
+  technology       VARCHAR(20),
+  cohort_number    VARCHAR(10),
+  status           VARCHAR(20)  DEFAULT 'Active',
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  INDEX idx_cohorts_technology (technology),
+  INDEX idx_cohorts_pattern (pattern_type),
+  INDEX idx_cohorts_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

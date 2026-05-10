@@ -6,6 +6,8 @@
 
 USE sprintflow_db;
 
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- ══════════════════════════════════════════════════════════════════════════════
 -- SECTION 1: USERS (5 total: 2 Managers, 2 HR, 1 Trainer)
 -- Password: Admin@123 (bcrypt hash)
@@ -311,6 +313,8 @@ SET @group_id = LAST_INSERT_ID();
 -- Add all users to the group
 INSERT INTO chat_group_members (group_id, user_id)
 SELECT @group_id, id FROM users;
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- ══════════════════════════════════════════════════════════════════════════════
 -- SECTION 9: VERIFICATION & SUMMARY

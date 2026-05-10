@@ -26,8 +26,14 @@ services:
 
     volumes:
       - mysql_data_local:/var/lib/mysql
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./MASTER_SEED.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./docker/init/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docker/init/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./docker/init/03-seed-python-devops.sql:/docker-entrypoint-initdb.d/03-seed-python-devops.sql:ro
+      - ./docker/init/04-seed-additional.sql:/docker-entrypoint-initdb.d/04-seed-additional.sql:ro
+      # For fresh deployments, these seed all 5 technologies.
+      # If you need to re-seed an existing volume, delete the volume first:
+      #   docker compose -f docker-compose.local.yml down -v
+      #   docker compose -f docker-compose.local.yml up -d --build
 
     ports:
       - "3307:3306"
@@ -75,6 +81,9 @@ services:
       SWAGGER_ENABLED: "true"
       RATE_LIMIT_ENABLED: "false"
 
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SPRING_FLYWAY_BASELINE_VERSION: "15"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
       JAVA_OPTS: "-Xms256m -Xmx768m"
 
     ports:
